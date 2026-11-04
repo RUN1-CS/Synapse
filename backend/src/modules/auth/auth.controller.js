@@ -6,17 +6,52 @@ const { asyncHandler } = require('../../utils/httpError');
 
 exports.register = asyncHandler(async (req, res) => {
   const { username, password, displayName } = req.body;
-  res.status(201).json(await service.register(username, password, displayName || username));
+  res.status(201).json(await service.register(
+    username, password, displayName || username, req.get('user-agent')
+  ));
 });
 
 exports.updateDisplayName = asyncHandler(async (req, res) => {
   const user = await service.updateDisplayName(req.user.id, req.body.displayName);
-  res.json({ user, token: service.signToken(user) });
+  res.json({ user });
 });
 
 exports.updateBio = asyncHandler(async (req, res) => {
   const user = await service.updateBio(req.user.id, req.body.bio);
-  res.json({ user, token: service.signToken(user) });
+  res.json({ user });
+});
+
+exports.changePassword = asyncHandler(async (req, res) => {
+  const user = await service.changePassword(
+    req.user.id,
+    req.body.currentPassword,
+    req.body.newPassword,
+    req.get('user-agent')
+  );
+  res.json(user);
+});
+
+exports.logout = asyncHandler(async (req, res) => {
+  await service.revokeSession(req.user.id, req.user.sid);
+  res.status(204).end();
+});
+
+exports.logoutAll = asyncHandler(async (req, res) => {
+  await service.revokeAllSessions(req.user.id);
+  res.status(204).end();
+});
+
+exports.refresh = asyncHandler(async (req, res) => {
+  res.json(await service.refresh(req.body.refreshToken, req.get('user-agent')));
+});
+
+exports.sessions = asyncHandler(async (req, res) => {
+  res.json(await service.listSessions(req.user.id, req.user.sid));
+});
+
+exports.revokeSession = asyncHandler(async (req, res) => {
+  await service.revokeSession(req.user.id, req.params.sessionId);
+  res.status(204).end();
 });
 
 exports.updateAvatar = asyncHandler(async (req, res) => {
@@ -32,10 +67,10 @@ exports.updateAvatar = asyncHandler(async (req, res) => {
       { force: true }
     );
   }
-  res.json({ user, token: service.signToken(user) });
+  res.json({ user });
 });
 
 exports.login = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
-  res.json(await service.login(username, password));
+  res.json(await service.login(username, password, req.get('user-agent')));
 });

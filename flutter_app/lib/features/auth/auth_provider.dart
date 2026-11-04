@@ -6,7 +6,21 @@ import 'user.dart';
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _repo;
   final ApiClient _api;
-  AuthProvider(this._repo, this._api);
+  AuthProvider(this._repo, this._api) {
+    _api.onTokensRefreshed = (access, refresh) async {
+      token = access;
+      await _repo.saveTokens(access, refresh);
+      notifyListeners();
+    };
+    _api.onSessionExpired = () async {
+      await _repo.clear();
+      user = null;
+      token = null;
+      _api.token = null;
+      _api.refreshToken = null;
+      notifyListeners();
+    };
+  }
 
   User? user;
   String? token;
@@ -30,6 +44,17 @@ class AuthProvider extends ChangeNotifier {
   Future<void> updateAvatar(List<int> bytes, String filename) =>
       _run(() => _repo.updateAvatar(bytes, filename));
   Future<void> updateBio(String bio) => _run(() => _repo.updateBio(bio));
+  Future<void> changePassword(String current, String next) =>
+      _run(() => _repo.changePassword(current, next));
+
+  Future<List<ActiveSession>> sessions() => _repo.sessions();
+
+  Future<void> revokeSession(String id) => _repo.revokeSession(id);
+
+  Future<void> logoutAll() async {
+    await _repo.logoutAll();
+    await logout();
+  }
 
   Future<void> _run(Future<AuthSession> Function() action) async {
     busy = true;
@@ -47,10 +72,16 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    try {
+      await _repo.logout();
+    } on ApiException {
+      // Local logout still clears the session if the server is unavailable.
+    }
     await _repo.clear();
     user = null;
     token = null;
     _api.token = null;
+    _api.refreshToken = null;
     notifyListeners();
   }
 
@@ -58,5 +89,6 @@ class AuthProvider extends ChangeNotifier {
     user = s.user;
     token = s.token;
     _api.token = s.token;
+    _api.refreshToken = s.refreshToken;
   }
 }
