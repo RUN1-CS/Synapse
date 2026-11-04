@@ -1,0 +1,68 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Flutter platform-generated files
+flutter_app/linux/flutter/ephemeral/
+flutter_app/macos/Flutter/ephemeral/
+flutter_app/ios/Flutter/ephemeral/
+flutter_app/windows/flutter/ephemeral/
+
+# Generated plugin registrants
+flutter_app/linux/flutter/generated_plugin_registrant.cc
+flutter_app/linux/flutter/generated_plugin_registrant.h
+flutter_app/linux/flutter/generated_plugins.cmake
+
+flutter_app/windows/flutter/generated_plugin_registrant.cc
+flutter_app/windows/flutter/generated_plugin_registrant.h
+flutter_app/windows/flutter/generated_plugins.cmake
+
+# IDEs & editors
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build outputs
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.exe
+*.app
+*.dSYM/
+*.class
+
+# Logs & temporary files
+*.log
+*.tmp
+*.temp
+.cache/
+
+# Test & coverage
+coverage/
+.nyc_output/
