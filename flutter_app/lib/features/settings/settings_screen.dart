@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../auth/auth_provider.dart';
 import '../chat/chat_provider.dart';
+import '../../core/theme_settings.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,18 +14,43 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _displayName;
+  final Map<String, TextEditingController> _colors = {};
 
   @override
   void initState() {
     super.initState();
     _displayName = TextEditingController(
         text: context.read<AuthProvider>().user?.displayName ?? '');
+    final theme = context.read<ThemeSettings>();
+    for (final entry in {
+      'primary': theme.primary,
+      'secondary': theme.secondary,
+      'background': theme.background,
+      'surface': theme.surface,
+      'error': theme.error,
+    }.entries) {
+      _colors[entry.key] = TextEditingController(text: _hex(entry.value));
+    }
   }
 
   @override
   void dispose() {
     _displayName.dispose();
+    for (final controller in _colors.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  String _hex(Color color) =>
+      '#${color.toARGB32().toRadixString(16).padLeft(8, '0')}';
+
+  Future<void> _setColor(String name) async {
+    final raw = _colors[name]!.text.trim().replaceFirst('#', '');
+    final normalized = raw.length == 6 ? 'ff$raw' : raw;
+    final value = int.tryParse(normalized, radix: 16);
+    if (value == null || normalized.length != 8) return;
+    await context.read<ThemeSettings>().setColor(name, Color(value));
   }
 
   Future<void> _save() async {
@@ -54,6 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
     final displayName = user?.displayName ?? '';
+    final theme = context.watch<ThemeSettings>();
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -108,6 +135,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ),
           const SizedBox(height: 24),
+          const Text('Appearance',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    label: Text('Light mode'),
+                    icon: Icon(Icons.light_mode),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    label: Text('Dark mode'),
+                    icon: Icon(Icons.dark_mode),
+                  ),
+                ],
+                selected: {theme.mode},
+                onSelectionChanged: (values) => theme.setMode(values.first),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: theme.applyLightPreset,
+                  child: const Text('Light preset'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: theme.applyDarkPreset,
+                  child: const Text('Dark preset'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final entry in {
+            'primary': 'Primary',
+            'secondary': 'Secondary',
+            'background': 'Background',
+            'surface': 'Surface',
+            'error': 'Error',
+          }.entries)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TextField(
+                controller: _colors[entry.key],
+                onSubmitted: (_) => _setColor(entry.key),
+                decoration: InputDecoration(
+                  labelText: entry.value,
+                  helperText: '#RRGGBB or #AARRGGBB',
+                  prefixIcon:
+                      Icon(Icons.palette, color: _colorFor(theme, entry.key)),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.check),
+                    onPressed: () => _setColor(entry.key),
+                  ),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ),
+          const SizedBox(height: 24),
           const Text('Account', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Card(
@@ -120,5 +216,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Color _colorFor(ThemeSettings theme, String name) {
+    switch (name) {
+      case 'primary':
+        return theme.primary;
+      case 'secondary':
+        return theme.secondary;
+      case 'background':
+        return theme.background;
+      case 'surface':
+        return theme.surface;
+      default:
+        return theme.error;
+    }
   }
 }
