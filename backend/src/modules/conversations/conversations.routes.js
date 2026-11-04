@@ -1,11 +1,11 @@
 const router = require('express').Router();
 const requireAuth = require('../auth/auth.middleware');
-const controller = require('./rooms.controller');
+const controller = require('./conversations.controller');
 const messagesController = require('../messages/messages.controller');
 
 router.use(requireAuth);
-router.get('/', controller.list);
+router.get('/users', controller.listUsers);
 router.post('/', controller.create);
-router.get('/:roomId/messages', messagesController.listByRoom);
+router.get('/:conversationId/messages', messagesController.listByConversation);
 
 module.exports = router;

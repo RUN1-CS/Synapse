@@ -19,8 +19,10 @@ class AuthRepository {
   Future<AuthSession> register(String username, String password) =>
       _auth('/auth/register', username, password);
 
-  Future<AuthSession> _auth(String path, String username, String password) async {
-    final data = await api.post(path, {'username': username, 'password': password});
+  Future<AuthSession> _auth(
+      String path, String username, String password) async {
+    final data =
+        await api.post(path, {'username': username, 'password': password});
     final session = AuthSession(User.fromJson(data['user']), data['token']);
     await _save(session);
     return session;
@@ -28,7 +30,8 @@ class AuthRepository {
 
   Future<void> _save(AuthSession s) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('session', jsonEncode({'user': s.user.toJson(), 'token': s.token}));
+    await prefs.setString(
+        'session', jsonEncode({'user': s.user.toJson(), 'token': s.token}));
   }
 
   Future<AuthSession?> restore() async {
@@ -38,5 +41,6 @@ class AuthRepository {
     return AuthSession(User.fromJson(j['user']), j['token']);
   }
 
-  Future<void> clear() async => (await SharedPreferences.getInstance()).remove('session');
+  Future<void> clear() async =>
+      (await SharedPreferences.getInstance()).remove('session');
 }

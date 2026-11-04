@@ -1,8 +1,9 @@
 const { Server } = require('socket.io');
 const { verifyToken } = require('../modules/auth/auth.service');
 const messages = require('../modules/messages/messages.service');
+const conversations = require('../modules/conversations/conversations.service');
 
-const roomKey = (id) => `room:${id}`;
+const conversationKey = (id) => `conversation:${id}`;
 
 module.exports = function initSockets(httpServer) {
   const io = new Server(httpServer, { cors: { origin: '*' } });
@@ -18,13 +19,21 @@ module.exports = function initSockets(httpServer) {
   });
 
   io.on('connection', (socket) => {
-    socket.on('join_room', (roomId) => socket.join(roomKey(roomId)));
-    socket.on('leave_room', (roomId) => socket.leave(roomKey(roomId)));
-
-    socket.on('send_message', async ({ roomId, content }, ack) => {
+    socket.on('join_conversation', async (conversationId, ack) => {
       try {
-        const msg = await messages.create({ roomId, userId: socket.user.id, content });
-        io.to(roomKey(roomId)).emit('new_message', msg);
+        await conversations.assertMember(Number(conversationId), socket.user.id);
+        socket.join(conversationKey(conversationId));
+        if (typeof ack === 'function') ack({ ok: true });
+      } catch (e) {
+        if (typeof ack === 'function') ack({ ok: false, error: e.message });
+      }
+    });
+    socket.on('leave_conversation', (conversationId) => socket.leave(conversationKey(conversationId)));
+
+    socket.on('send_message', async ({ conversationId, content }, ack) => {
+      try {
+        const msg = await messages.create({ conversationId, userId: socket.user.id, content });
+        io.to(conversationKey(conversationId)).emit('new_message', msg);
         if (typeof ack === 'function') ack({ ok: true });
       } catch (e) {
         if (typeof ack === 'function') ack({ ok: false, error: e.message });

@@ -7,7 +7,7 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/auth', require('./modules/auth/auth.routes'));
-app.use('/api/rooms', require('./modules/rooms/rooms.routes'));
+app.use('/api/conversations', require('./modules/conversations/conversations.routes'));
 
 // Error handler
 app.use((err, _req, res, _next) => {

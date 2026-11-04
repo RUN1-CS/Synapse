@@ -22,7 +22,7 @@ This project is a foundation for a chat experience with a clean interface and ro
 
 - Real-time conversation experience
 - Clear, responsive chat interface
-- Conversation and message history
+- Direct-message conversation and message history
 - Extensible authentication and user-management integration
 - Configuration through environment variables
 - A structure designed for local development and production deployment
@@ -117,7 +117,7 @@ chat-app/
 │       ├── modules/                 # Feature-oriented backend modules
 │       │   ├── auth/                # Authentication, authorization and sessions
 │       │   ├── messages/            # Message handling and persistence
-│       │   └── rooms/               # Chat room management
+│       │   └── conversations/       # Direct-message conversations
 │       ├── sockets/                 # Real-time communication (Socket.IO)
 │       └── utils/                   # Shared utilities and error handling
 │
@@ -126,7 +126,7 @@ chat-app/
 │   │   ├── core/                    # Shared infrastructure (API, configuration)
 │   │   └── features/                # Feature-oriented application code
 │   │       ├── auth/                # Login, user state and authentication
-│   │       └── chat/                # Chat UI, rooms, messages and sockets
+│       │       └── chat/                # Direct messages, contacts and sockets
 │   │
 │   ├── ios/                         # iOS native project (Xcode)
 │   ├── linux/                       # Linux native project (GTK)

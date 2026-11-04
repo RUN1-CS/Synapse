@@ -1,6 +1,6 @@
 const service = require('./messages.service');
 const { asyncHandler } = require('../../utils/httpError');
 
-exports.listByRoom = asyncHandler(async (req, res) => {
-  res.json(await service.listByRoom(Number(req.params.roomId)));
+exports.listByConversation = asyncHandler(async (req, res) => {
+  res.json(await service.listByConversation(Number(req.params.conversationId), req.user.id));
 });

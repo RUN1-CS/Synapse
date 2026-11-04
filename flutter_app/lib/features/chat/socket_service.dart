@@ -14,15 +14,23 @@ class SocketService {
     disconnect();
     _socket = io.io(
       Config.baseUrl,
-      io.OptionBuilder().setTransports(['websocket']).setAuth({'token': token}).disableAutoConnect().build(),
+      io.OptionBuilder()
+          .setTransports(['websocket'])
+          .setAuth({'token': token})
+          .disableAutoConnect()
+          .build(),
     );
-    _socket!.on('new_message', (data) => _controller.add(Message.fromJson(Map<String, dynamic>.from(data))));
+    _socket!.on(
+        'new_message',
+        (data) =>
+            _controller.add(Message.fromJson(Map<String, dynamic>.from(data))));
     _socket!.connect();
   }
 
-  void joinRoom(int id) => _socket?.emit('join_room', id);
-  void leaveRoom(int id) => _socket?.emit('leave_room', id);
-  void send(int roomId, String content) => _socket?.emit('send_message', {'roomId': roomId, 'content': content});
+  void joinConversation(int id) => _socket?.emit('join_conversation', id);
+  void leaveConversation(int id) => _socket?.emit('leave_conversation', id);
+  void send(int conversationId, String content) => _socket?.emit(
+      'send_message', {'conversationId': conversationId, 'content': content});
 
   void disconnect() {
     _socket?.dispose();

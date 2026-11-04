@@ -34,7 +34,8 @@ class _ChatScreenState extends State<ChatScreen> {
         chat.messages.reversed.toList(); // reversed list: newest at the bottom
 
     return Scaffold(
-      appBar: AppBar(title: Text('# ${chat.current?.name ?? ''}')),
+      appBar:
+          AppBar(title: Text(chat.currentUser?.username ?? 'Direct message')),
       body: Column(
         children: [
           Expanded(

@@ -25,9 +25,13 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Chat', style: Theme.of(context).textTheme.headlineLarge, textAlign: TextAlign.center),
+                Text('Chat',
+                    style: Theme.of(context).textTheme.headlineLarge,
+                    textAlign: TextAlign.center),
                 const SizedBox(height: 24),
-                TextField(controller: _user, decoration: const InputDecoration(labelText: 'Username')),
+                TextField(
+                    controller: _user,
+                    decoration: const InputDecoration(labelText: 'Username')),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _pass,
@@ -38,15 +42,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (auth.error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: Text(auth.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    child: Text(auth.error!,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
                   ),
                 const SizedBox(height: 20),
                 FilledButton(
-                  onPressed: auth.busy ? null : () => auth.login(_user.text.trim(), _pass.text),
+                  onPressed: auth.busy
+                      ? null
+                      : () => auth.login(_user.text.trim(), _pass.text),
                   child: const Text('Log in'),
                 ),
                 TextButton(
-                  onPressed: auth.busy ? null : () => auth.register(_user.text.trim(), _pass.text),
+                  onPressed: auth.busy
+                      ? null
+                      : () => auth.register(_user.text.trim(), _pass.text),
                   child: const Text('Create account'),
                 ),
               ],

@@ -6,7 +6,7 @@ import 'features/auth/auth_repository.dart';
 import 'features/auth/login_screen.dart';
 import 'features/chat/chat_provider.dart';
 import 'features/chat/chat_repository.dart';
-import 'features/chat/rooms_screen.dart';
+import 'features/chat/conversations_screen.dart';
 import 'features/chat/socket_service.dart';
 
 void main() {
@@ -16,8 +16,10 @@ void main() {
 
   runApp(MultiProvider(
     providers: [
-      ChangeNotifierProvider(create: (_) => AuthProvider(AuthRepository(api), api)..init()),
-      ChangeNotifierProvider(create: (_) => ChatProvider(ChatRepository(api), socket)),
+      ChangeNotifierProvider(
+          create: (_) => AuthProvider(AuthRepository(api), api)..init()),
+      ChangeNotifierProvider(
+          create: (_) => ChatProvider(ChatRepository(api), socket)),
     ],
     child: const MyApp(),
   ));
@@ -35,7 +37,7 @@ class MyApp extends StatelessWidget {
       home: auth.initializing
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : auth.isLoggedIn
-              ? const RoomsScreen()
+              ? const ConversationsScreen()
               : const LoginScreen(),
     );
   }

@@ -1,13 +1,13 @@
-class Room {
+class Conversation {
   final int id;
-  final String name;
-  Room({required this.id, required this.name});
-  factory Room.fromJson(Map<String, dynamic> j) => Room(id: j['id'], name: j['name']);
+  Conversation({required this.id});
+  factory Conversation.fromJson(Map<String, dynamic> j) =>
+      Conversation(id: int.parse('${j['id']}'));
 }
 
 class Message {
   final int id;
-  final int roomId;
+  final int conversationId;
   final int userId;
   final String username;
   final String content;
@@ -15,7 +15,7 @@ class Message {
 
   Message({
     required this.id,
-    required this.roomId,
+    required this.conversationId,
     required this.userId,
     required this.username,
     required this.content,
@@ -24,7 +24,7 @@ class Message {
 
   factory Message.fromJson(Map<String, dynamic> j) => Message(
         id: int.parse('${j['id']}'), // BIGSERIAL arrives as a string
-        roomId: j['roomId'],
+        conversationId: int.parse('${j['conversationId']}'),
         userId: j['userId'],
         username: j['username'],
         content: j['content'],

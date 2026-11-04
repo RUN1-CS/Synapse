@@ -1,28 +1,31 @@
 const db = require('../../config/db');
 const { HttpError } = require('../../utils/httpError');
+const conversations = require('../conversations/conversations.service');
 
-const COLUMNS = `m.id, m.room_id AS "roomId", m.user_id AS "userId", u.username,
+const COLUMNS = `m.id, m.conversation_id AS "conversationId", m.user_id AS "userId", u.username,
                  m.content, m.created_at AS "createdAt"`;
 
-async function listByRoom(roomId, limit = 50) {
+async function listByConversation(conversationId, userId, limit = 50) {
+  await conversations.assertMember(conversationId, userId);
   const { rows } = await db.query(
     `SELECT ${COLUMNS} FROM messages m JOIN users u ON u.id = m.user_id
-     WHERE m.room_id = $1 ORDER BY m.id DESC LIMIT $2`,
-    [roomId, limit]
+     WHERE m.conversation_id = $1 ORDER BY m.id DESC LIMIT $2`,
+    [conversationId, limit]
   );
   return rows.reverse();
 }
 
-async function create({ roomId, userId, content }) {
+async function create({ conversationId, userId, content }) {
+  await conversations.assertMember(conversationId, userId);
   const text = (content || '').trim();
   if (!text) throw new HttpError(400, 'Message is empty');
   const { rows } = await db.query(
     `WITH m AS (
-       INSERT INTO messages (room_id, user_id, content) VALUES ($1, $2, $3) RETURNING *
+       INSERT INTO messages (conversation_id, user_id, content) VALUES ($1, $2, $3) RETURNING *
      ) SELECT ${COLUMNS} FROM m JOIN users u ON u.id = m.user_id`,
-    [roomId, userId, text]
+    [conversationId, userId, text]
   );
   return rows[0];
 }
 
-module.exports = { listByRoom, create };
+module.exports = { listByConversation, create };

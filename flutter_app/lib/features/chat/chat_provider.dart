@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../core/api_client.dart';
+import '../auth/user.dart';
 import 'chat_repository.dart';
 import 'models.dart';
 import 'socket_service.dart';
@@ -14,26 +15,28 @@ class ChatProvider extends ChangeNotifier {
     _sub = _socket.messages.listen(_onMessage);
   }
 
-  List<Room> rooms = [];
-  Room? current;
+  List<User> users = [];
+  User? currentUser;
+  Conversation? current;
   List<Message> messages = [];
   String? error;
 
   Future<void> start(String token) async {
     _socket.connect(token);
-    await loadRooms();
+    await loadUsers();
   }
 
   void stop() {
     _socket.disconnect();
-    rooms = [];
+    users = [];
+    currentUser = null;
     current = null;
     messages = [];
   }
 
-  Future<void> loadRooms() async {
+  Future<void> loadUsers() async {
     try {
-      rooms = await _repo.rooms();
+      users = await _repo.users();
       error = null;
     } on ApiException catch (e) {
       error = e.message;
@@ -41,30 +44,32 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> createRoom(String name) async {
+  Future<bool> openConversation(User user) async {
     try {
-      await _repo.createRoom(name);
-      await loadRooms();
-    } on ApiException catch (e) {
-      error = e.message;
+      currentUser = user;
+      messages = [];
+      current = await _repo.conversationFor(user);
+      _socket.joinConversation(current!.id);
       notifyListeners();
+      final history = await _repo.messages(current!.id);
+      final known = history.map((m) => m.id).toSet();
+      messages = [...history, ...messages.where((m) => !known.contains(m.id))];
+      error = null;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      current = null;
+      currentUser = null;
+      error = e.message;
     }
+    notifyListeners();
+    return false;
   }
 
-  Future<void> openRoom(Room room) async {
-    current = room;
-    messages = [];
-    _socket.joinRoom(room.id); // join first so nothing is missed while history loads
-    notifyListeners();
-    final history = await _repo.messages(room.id);
-    final known = history.map((m) => m.id).toSet();
-    messages = [...history, ...messages.where((m) => !known.contains(m.id))];
-    notifyListeners();
-  }
-
-  void closeRoom() {
-    if (current != null) _socket.leaveRoom(current!.id);
+  void closeConversation() {
+    if (current != null) _socket.leaveConversation(current!.id);
     current = null;
+    currentUser = null;
     messages = [];
   }
 
@@ -74,7 +79,8 @@ class ChatProvider extends ChangeNotifier {
   }
 
   void _onMessage(Message m) {
-    if (m.roomId != current?.id || messages.any((x) => x.id == m.id)) return;
+    if (m.conversationId != current?.id || messages.any((x) => x.id == m.id))
+      return;
     messages = [...messages, m];
     notifyListeners();
   }
