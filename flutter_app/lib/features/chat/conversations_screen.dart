@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../auth/auth_provider.dart';
+import '../auth/user.dart';
 import 'chat_provider.dart';
 import 'chat_screen.dart';
 
@@ -40,17 +41,50 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             Padding(padding: const EdgeInsets.all(8), child: Text(chat.error!)),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: chat.loadUsers,
+              onRefresh: chat.loadConversations,
               child: ListView(
                 children: [
-                  for (final user in chat.users)
+                  for (final conversation in chat.conversations)
                     ListTile(
-                      leading: CircleAvatar(
-                          child: Text(user.username[0].toUpperCase())),
-                      title: Text(user.username),
-                      subtitle: const Text('Direct message'),
+                      tileColor: chat.isUnread(conversation.id)
+                          ? Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withValues(alpha: 0.35)
+                          : null,
+                      leading: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (chat.isUnread(conversation.id))
+                            Container(
+                              width: 9,
+                              height: 9,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          CircleAvatar(
+                            child: Text(conversation.username[0].toUpperCase()),
+                          ),
+                        ],
+                      ),
+                      title: Text(
+                        conversation.username,
+                        style: chat.isUnread(conversation.id)
+                            ? const TextStyle(fontWeight: FontWeight.bold)
+                            : null,
+                      ),
+                      subtitle: Text(conversation.latestContent == null
+                          ? 'Start a conversation'
+                          : '${conversation.latestUsername}: ${conversation.latestContent}'),
                       onTap: () async {
-                        if (!await chat.openConversation(user)) return;
+                        if (!await chat.openConversation(User(
+                            id: conversation.userId,
+                            username: conversation.username))) {
+                          return;
+                        }
                         if (!context.mounted) return;
                         Navigator.push(
                           context,
@@ -64,6 +98,36 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _newConversation(context),
+        child: const Icon(Icons.edit),
+      ),
     );
+  }
+
+  Future<void> _newConversation(BuildContext context) async {
+    final chat = context.read<ChatProvider>();
+    final user = await showModalBottomSheet<User>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final item in chat.users)
+              ListTile(
+                leading:
+                    CircleAvatar(child: Text(item.username[0].toUpperCase())),
+                title: Text(item.username),
+                onTap: () => Navigator.pop(context, item),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (user == null || !await chat.openConversation(user) || !mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ChatScreen()),
+    ).then((_) => chat.closeConversation());
   }
 }

@@ -9,6 +9,33 @@ async function listUsers(userId) {
   return rows;
 }
 
+async function listForUser(userId) {
+  const { rows } = await db.query(
+    `SELECT c.id,
+            other.id AS "userId",
+            other.username,
+            latest.content AS "latestContent",
+            latest.user_id AS "latestUserId",
+            latest.username AS "latestUsername",
+            latest.created_at AS "latestCreatedAt"
+     FROM conversations c
+     JOIN users other ON other.id = CASE
+       WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END
+     LEFT JOIN LATERAL (
+       SELECT m.content, m.user_id, u.username, m.created_at
+       FROM messages m
+       JOIN users u ON u.id = m.user_id
+       WHERE m.conversation_id = c.id
+       ORDER BY m.id DESC
+       LIMIT 1
+     ) latest ON true
+     WHERE c.user_one_id = $1 OR c.user_two_id = $1
+     ORDER BY latest.created_at DESC NULLS LAST, c.created_at DESC`,
+    [userId]
+  );
+  return rows;
+}
+
 async function getOrCreate(userId, otherUserId) {
   const other = Number(otherUserId);
   if (!Number.isInteger(other) || other <= 0 || other === userId) {
@@ -35,4 +62,4 @@ async function assertMember(conversationId, userId) {
   if (!rows[0]) throw new HttpError(403, 'You are not part of this conversation');
 }
 
-module.exports = { listUsers, getOrCreate, assertMember };
+module.exports = { listUsers, listForUser, getOrCreate, assertMember };

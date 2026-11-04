@@ -10,28 +10,47 @@ class ChatProvider extends ChangeNotifier {
   final ChatRepository _repo;
   final SocketService _socket;
   StreamSubscription<Message>? _sub;
+  StreamSubscription<Message>? _notificationSub;
 
   ChatProvider(this._repo, this._socket) {
     _sub = _socket.messages.listen(_onMessage);
+    _notificationSub = _socket.notifications.listen(_onNotification);
   }
 
+  List<Conversation> conversations = [];
+  final Set<int> unreadConversationIds = {};
   List<User> users = [];
   User? currentUser;
   Conversation? current;
   List<Message> messages = [];
   String? error;
 
+  bool isUnread(int conversationId) =>
+      unreadConversationIds.contains(conversationId);
+
   Future<void> start(String token) async {
     _socket.connect(token);
-    await loadUsers();
+    await Future.wait([loadUsers(), loadConversations()]);
   }
 
   void stop() {
     _socket.disconnect();
     users = [];
+    conversations = [];
+    unreadConversationIds.clear();
     currentUser = null;
     current = null;
     messages = [];
+  }
+
+  Future<void> loadConversations() async {
+    try {
+      conversations = await _repo.conversations();
+      error = null;
+    } on ApiException catch (e) {
+      error = e.message;
+    }
+    notifyListeners();
   }
 
   Future<void> loadUsers() async {
@@ -49,11 +68,13 @@ class ChatProvider extends ChangeNotifier {
       currentUser = user;
       messages = [];
       current = await _repo.conversationFor(user);
+      unreadConversationIds.remove(current!.id);
       _socket.joinConversation(current!.id);
       notifyListeners();
       final history = await _repo.messages(current!.id);
       final known = history.map((m) => m.id).toSet();
       messages = [...history, ...messages.where((m) => !known.contains(m.id))];
+      await loadConversations();
       error = null;
       notifyListeners();
       return true;
@@ -79,15 +100,44 @@ class ChatProvider extends ChangeNotifier {
   }
 
   void _onMessage(Message m) {
+    _updateConversation(m);
     if (m.conversationId != current?.id || messages.any((x) => x.id == m.id))
       return;
     messages = [...messages, m];
     notifyListeners();
   }
 
+  void _onNotification(Message m) {
+    _updateConversation(m);
+    if (m.conversationId != current?.id) {
+      unreadConversationIds.add(m.conversationId);
+      notifyListeners();
+    }
+  }
+
+  void _updateConversation(Message m) {
+    final index = conversations.indexWhere((c) => c.id == m.conversationId);
+    if (index >= 0) {
+      conversations[index] = Conversation(
+        id: conversations[index].id,
+        userId: conversations[index].userId,
+        username: conversations[index].username,
+        latestContent: m.content,
+        latestUserId: m.userId,
+        latestUsername: m.username,
+        latestCreatedAt: m.createdAt,
+      );
+      conversations.sort((a, b) => (b.latestCreatedAt ?? DateTime(0))
+          .compareTo(a.latestCreatedAt ?? DateTime(0)));
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
+    _notificationSub?.cancel();
+    _socket.dispose();
     super.dispose();
   }
 }
