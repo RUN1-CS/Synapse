@@ -4,6 +4,7 @@ import '../auth/auth_provider.dart';
 import '../auth/user.dart';
 import 'chat_provider.dart';
 import 'chat_screen.dart';
+import '../settings/settings_screen.dart';
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -26,6 +27,16 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         title: Text(
             'Messages · ${context.read<AuthProvider>().user?.username ?? ''}'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
