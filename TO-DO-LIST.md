@@ -13,7 +13,7 @@ Status: `[x]` shipped · `[ ]` planned · `[~]` partial or needs verification
 - [x] Add refresh-token rotation and expiration policies
 - [x] Add rate limiting and basic abuse protection
 - [x] Add account deletion and data-retention behavior
-- [ ] Add automated backend and client coverage for authentication and authorization
+- [x] Add automated backend and client coverage for authentication and authorization
 - [x] Establish secure configuration and secret management
 - [x] Define message delivery and synchronization semantics
 
