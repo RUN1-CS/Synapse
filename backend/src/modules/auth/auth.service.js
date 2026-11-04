@@ -61,13 +61,17 @@ async function updateDisplayName(userId, displayName) {
 }
 
 async function updateAvatar(userId, filename) {
+  const previous = await db.query(
+    'SELECT avatar_url AS "avatarUrl" FROM users WHERE id = $1',
+    [userId]
+  );
   const { rows } = await db.query(
     `UPDATE users SET avatar_url = $1
      WHERE id = $2
      RETURNING id, username, display_name AS "displayName", avatar_url AS "avatarUrl"`,
     [`/uploads/${filename}`, userId]
   );
-  return rows[0];
+  return { user: rows[0], oldAvatarUrl: previous.rows[0]?.avatarUrl };
 }
 
 module.exports = {

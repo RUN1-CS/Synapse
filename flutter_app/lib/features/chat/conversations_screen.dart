@@ -80,8 +80,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                             backgroundImage: conversation.avatarUrl == null
                                 ? null
                                 : NetworkImage(conversation.avatarUrl!),
-                            child:
-                                Text(conversation.displayName[0].toUpperCase()),
+                            child: conversation.avatarUrl == null
+                                ? Text(
+                                    conversation.displayName[0].toUpperCase())
+                                : null,
                           ),
                         ],
                       ),
@@ -136,7 +138,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   backgroundImage: item.avatarUrl == null
                       ? null
                       : NetworkImage(item.avatarUrl!),
-                  child: Text(item.displayName[0].toUpperCase()),
+                  child: item.avatarUrl == null
+                      ? Text(item.displayName[0].toUpperCase())
+                      : null,
                 ),
                 title: Text(item.displayName),
                 onTap: () => Navigator.pop(context, item),

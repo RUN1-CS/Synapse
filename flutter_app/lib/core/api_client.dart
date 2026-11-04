@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'config.dart';
 
 class ApiException implements Exception {
@@ -32,10 +33,20 @@ class ApiClient {
 
   Future<dynamic> upload(
       String path, String field, List<int> bytes, String filename) async {
+    final extension = filename.split('.').last.toLowerCase();
+    final mimeTypes = {
+      'jpg': MediaType('image', 'jpeg'),
+      'jpeg': MediaType('image', 'jpeg'),
+      'png': MediaType('image', 'png'),
+      'gif': MediaType('image', 'gif'),
+      'webp': MediaType('image', 'webp'),
+    };
     final request = http.MultipartRequest('PATCH', _uri(path))
       ..headers.addAll(_headers..remove('Content-Type'))
-      ..files
-          .add(http.MultipartFile.fromBytes(field, bytes, filename: filename));
+      ..files.add(http.MultipartFile.fromBytes(field, bytes,
+          filename: filename,
+          contentType: mimeTypes[extension] ??
+              MediaType('application', 'octet-stream')));
     return _handle(await http.Response.fromStream(await request.send()));
   }
 

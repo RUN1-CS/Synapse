@@ -65,9 +65,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 backgroundImage: user?.avatarUrl == null
                     ? null
                     : NetworkImage(user!.avatarUrl!),
-                child: Text(displayName.isNotEmpty
-                    ? displayName[0].toUpperCase()
-                    : '?'),
+                child: user?.avatarUrl == null
+                    ? Text(displayName.isNotEmpty
+                        ? displayName[0].toUpperCase()
+                        : '?')
+                    : null,
               ),
               title: Text(displayName.isEmpty ? 'Account' : displayName),
               subtitle: Text('@${user?.username ?? ''}'),

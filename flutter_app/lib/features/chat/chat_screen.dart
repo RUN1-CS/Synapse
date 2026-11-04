@@ -42,9 +42,11 @@ class _ChatScreenState extends State<ChatScreen> {
               backgroundImage: chat.currentUser?.avatarUrl == null
                   ? null
                   : NetworkImage(chat.currentUser!.avatarUrl!),
-              child: Text(
-                (chat.currentUser?.displayName ?? '?')[0].toUpperCase(),
-              ),
+              child: chat.currentUser?.avatarUrl == null
+                  ? Text(
+                      (chat.currentUser?.displayName ?? '?')[0].toUpperCase(),
+                    )
+                  : null,
             ),
             const SizedBox(width: 8),
             Text(chat.currentUser?.displayName ?? 'Direct message'),
@@ -62,30 +64,49 @@ class _ChatScreenState extends State<ChatScreen> {
                 final m = msgs[i];
                 final mine = m.userId == me;
                 final scheme = Theme.of(context).colorScheme;
+                final bubble = Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  decoration: BoxDecoration(
+                    color: mine
+                        ? scheme.primaryContainer
+                        : scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!mine)
+                        Text(m.displayName,
+                            style: Theme.of(context).textTheme.labelSmall),
+                      Text(m.content),
+                    ],
+                  ),
+                );
                 return Align(
                   alignment:
                       mine ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    decoration: BoxDecoration(
-                      color: mine
-                          ? scheme.primaryContainer
-                          : scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (!mine)
-                          Text(m.displayName,
-                              style: Theme.of(context).textTheme.labelSmall),
-                        Text(m.content),
-                      ],
-                    ),
-                  ),
+                  child: mine
+                      ? bubble
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundImage: m.avatarUrl == null
+                                  ? null
+                                  : NetworkImage(m.avatarUrl!),
+                              child: m.avatarUrl == null
+                                  ? Text(m.displayName[0].toUpperCase())
+                                  : null,
+                            ),
+                            const SizedBox(width: 8),
+                            bubble,
+                          ],
+                        ),
                 );
               },
             ),
