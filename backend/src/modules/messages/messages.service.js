@@ -1,6 +1,12 @@
 const db = require('../../config/db');
 const { HttpError } = require('../../utils/httpError');
 const conversations = require('../conversations/conversations.service');
+const {
+  messageMaxLength,
+  messageRateLimitWindowSeconds,
+  messageRateLimitMaxMessages,
+} = require('../../config/env');
+const { text: validateText } = require('../../middleware/validate');
 
 const COLUMNS = `m.id, m.conversation_id AS "conversationId", m.user_id AS "userId", u.username,
                  u.display_name AS "displayName",
@@ -17,15 +23,35 @@ async function listByConversation(conversationId, userId, limit = 50) {
   return rows.reverse();
 }
 
-async function create({ conversationId, userId, content }) {
+async function create({ conversationId, userId, content, clientMessageId }) {
   await conversations.assertMember(conversationId, userId);
-  const text = (content || '').trim();
-  if (!text) throw new HttpError(400, 'Message is empty');
+  const messageText = validateText(content, 'Message', messageMaxLength);
+  if (clientMessageId !== undefined &&
+      (typeof clientMessageId !== 'string' || clientMessageId.length > 128)) {
+    throw new HttpError(400, 'Invalid client message ID');
+  }
+  if (clientMessageId) {
+    const existing = await db.query(
+      `SELECT ${COLUMNS} FROM messages m JOIN users u ON u.id = m.user_id
+       WHERE m.user_id = $1 AND m.client_message_id = $2`,
+      [userId, clientMessageId]
+    );
+    if (existing.rows[0]) return existing.rows[0];
+  }
+  const recent = await db.query(
+    `SELECT COUNT(*)::int AS count FROM messages
+     WHERE user_id = $1 AND created_at >= now() - ($2 * interval '1 second')`,
+    [userId, messageRateLimitWindowSeconds]
+  );
+  if (recent.rows[0].count >= messageRateLimitMaxMessages) {
+    throw new HttpError(429, 'Message sending limit reached');
+  }
   const { rows } = await db.query(
     `WITH m AS (
-       INSERT INTO messages (conversation_id, user_id, content) VALUES ($1, $2, $3) RETURNING *
+       INSERT INTO messages (conversation_id, user_id, content, client_message_id)
+       VALUES ($1, $2, $3, $4) RETURNING *
      ) SELECT ${COLUMNS} FROM m JOIN users u ON u.id = m.user_id`,
-    [conversationId, userId, text]
+    [conversationId, userId, messageText, clientMessageId || null]
   );
   const message = rows[0];
   const recipient = await db.query(

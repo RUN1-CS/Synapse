@@ -11,10 +11,10 @@ Status: `[x]` shipped · `[ ]` planned · `[~]` partial or needs verification
 - [x] Validate and store profile image uploads
 - [x] Add session management, token revocation and device logout
 - [x] Add refresh-token rotation and expiration policies
-- [ ] Add rate limiting and basic abuse protection
-- [ ] Add account deletion and data-retention behavior
+- [x] Add rate limiting and basic abuse protection
+- [x] Add account deletion and data-retention behavior
 - [ ] Add automated backend and client coverage for authentication and authorization
-- [ ] Establish secure configuration and secret management
+- [x] Establish secure configuration and secret management
 - [ ] Define message delivery and synchronization semantics
 
 ## Beta — Minimum viable chat

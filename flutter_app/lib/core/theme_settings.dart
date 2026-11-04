@@ -51,7 +51,29 @@ class ThemeSettings extends ChangeNotifier {
       case 'error':
         error = value;
     }
+
     await _save();
+    notifyListeners();
+  }
+
+  Future<void> clearForDeletedAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in [
+      _brightnessKey,
+      _primaryKey,
+      _secondaryKey,
+      _backgroundKey,
+      _surfaceKey,
+      _errorKey,
+    ]) {
+      await prefs.remove(key);
+    }
+    mode = ThemeMode.light;
+    primary = Colors.indigo;
+    secondary = Colors.teal;
+    background = const Color(0xfff8f9ff);
+    surface = Colors.white;
+    error = Colors.red;
     notifyListeners();
   }
 

@@ -57,12 +57,18 @@ async function requestFriend(userId, otherUserId) {
     [userId, other]
   );
   if (rows[0]) throw new HttpError(403, 'Cannot request friendship with a blocked user');
+  const pending = await db.query(
+    `SELECT id, status FROM friend_requests
+     WHERE requester_id = $1 AND recipient_id = $2 AND status = 'pending'`,
+    [userId, other]
+  );
+  if (pending.rows[0]) return pending.rows[0];
   const result = await db.query(
     `INSERT INTO friend_requests (requester_id, recipient_id, status)
      VALUES ($1, $2, 'pending')
      ON CONFLICT (requester_id, recipient_id)
      DO UPDATE SET status = 'pending', created_at = now()
-     RETURNING id`,
+     RETURNING id, status`,
     [userId, other]
   );
   await db.query(

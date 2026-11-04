@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../core/config.dart';
@@ -43,8 +44,16 @@ class SocketService {
 
   void joinConversation(int id) => _socket?.emit('join_conversation', id);
   void leaveConversation(int id) => _socket?.emit('leave_conversation', id);
-  void send(int conversationId, String content) => _socket?.emit(
-      'send_message', {'conversationId': conversationId, 'content': content});
+  void send(int conversationId, String content) {
+    final random = Random.secure();
+    final clientMessageId =
+        '${DateTime.now().microsecondsSinceEpoch}-${random.nextInt(1 << 32)}';
+    _socket?.emit('send_message', {
+      'conversationId': conversationId,
+      'content': content,
+      'clientMessageId': clientMessageId,
+    });
+  }
 
   void disconnect() {
     _socket?.dispose();

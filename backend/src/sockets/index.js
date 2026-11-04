@@ -1,6 +1,12 @@
 const { Server } = require("socket.io");
 const db = require("../config/db");
-const { verifyToken } = require("../modules/auth/auth.service");
+const { validateToken } = require("../modules/auth/auth.service");
+const {
+  websocketRateLimitWindowSeconds,
+  websocketRateLimitMaxEvents,
+  websocketConnectionWindowSeconds,
+  websocketConnectionMaxAttempts,
+} = require("../config/env");
 const messages = require("../modules/messages/messages.service");
 const conversations = require("../modules/conversations/conversations.service");
 
@@ -9,11 +15,31 @@ const userKey = (id) => `user:${id}`;
 
 module.exports = function initSockets(httpServer) {
   const io = new Server(httpServer, { cors: { origin: "*" } });
+  const connections = new Map();
 
   // Authenticate every connection with the JWT sent in the handshake.
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
-      socket.user = verifyToken(socket.handshake.auth.token);
+      const now = Date.now();
+      const key = socket.handshake.address;
+      const current = connections.get(key);
+      if (connections.size > 10000) {
+        for (const [address, entry] of connections) {
+          if (now - entry.startedAt >= websocketConnectionWindowSeconds * 1000) {
+            connections.delete(address);
+          }
+        }
+      }
+      if (!current || now - current.startedAt >= websocketConnectionWindowSeconds * 1000) {
+        connections.set(key, { startedAt: now, count: 1 });
+      } else {
+        current.count += 1;
+        if (current.count > websocketConnectionMaxAttempts) {
+          next(new Error("too many connections"));
+          return;
+        }
+      }
+      socket.user = await validateToken(socket.handshake.auth.token);
       next();
     } catch {
       next(new Error("unauthorized"));
@@ -21,8 +47,23 @@ module.exports = function initSockets(httpServer) {
   });
 
   io.on("connection", (socket) => {
+    let eventWindowStarted = Date.now();
+    let eventCount = 0;
+    const allowEvent = () => {
+      const now = Date.now();
+      if (now - eventWindowStarted >= websocketRateLimitWindowSeconds * 1000) {
+        eventWindowStarted = now;
+        eventCount = 0;
+      }
+      eventCount += 1;
+      return eventCount <= websocketRateLimitMaxEvents;
+    };
     socket.join(userKey(socket.user.id));
     socket.on("join_conversation", async (conversationId, ack) => {
+      if (!allowEvent()) {
+        if (typeof ack === "function") ack({ ok: false, error: "Too many events" });
+        return;
+      }
       try {
         await conversations.assertMember(
           Number(conversationId),
@@ -35,15 +76,24 @@ module.exports = function initSockets(httpServer) {
       }
     });
     socket.on("leave_conversation", (conversationId) =>
-      socket.leave(conversationKey(conversationId)),
+      allowEvent() && socket.leave(conversationKey(conversationId)),
     );
 
-    socket.on("send_message", async ({ conversationId, content }, ack) => {
+    socket.on("send_message", async (payload, ack) => {
+      if (!allowEvent()) {
+        if (typeof ack === "function") ack({ ok: false, error: "Too many events" });
+        return;
+      }
       try {
+        if (!payload || typeof payload !== "object") {
+          throw new Error("Invalid message payload");
+        }
+        const { conversationId, content, clientMessageId } = payload;
         const msg = await messages.create({
           conversationId,
           userId: socket.user.id,
           content,
+          clientMessageId,
         });
         io.to(conversationKey(conversationId)).emit("new_message", msg);
         const { rows } = await db.query(

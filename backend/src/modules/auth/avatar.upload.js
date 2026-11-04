@@ -3,13 +3,24 @@ const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
 const sharp = require('sharp');
+const {
+  avatarMaxBytes,
+  jsonBodyLimitBytes,
+  multipartMaxFields,
+  multipartMaxParts,
+} = require('../../config/env');
 
 const uploadDir = path.join(__dirname, '../../../uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
 
 module.exports = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: {
+    fileSize: avatarMaxBytes,
+    fieldSize: jsonBodyLimitBytes,
+    fields: multipartMaxFields,
+    parts: multipartMaxParts,
+  },
   fileFilter: (_req, file, callback) => {
     const extension = path.extname(file.originalname).toLowerCase();
     const imageExtension = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(extension);

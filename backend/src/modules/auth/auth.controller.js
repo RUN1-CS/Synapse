@@ -41,6 +41,20 @@ exports.logoutAll = asyncHandler(async (req, res) => {
   res.status(204).end();
 });
 
+exports.deleteAccount = asyncHandler(async (req, res) => {
+  const { oldAvatarUrl } = await service.deleteAccount(
+    req.user.id,
+    req.body.password
+  );
+  if (oldAvatarUrl) {
+    await fs.rm(
+      path.join(__dirname, '../../../', oldAvatarUrl.replace(/^\/+/, '')),
+      { force: true }
+    );
+  }
+  res.status(204).end();
+});
+
 exports.refresh = asyncHandler(async (req, res) => {
   res.json(await service.refresh(req.body.refreshToken, req.get('user-agent')));
 });

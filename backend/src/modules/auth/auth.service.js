@@ -8,6 +8,7 @@ const {
   accessTokenLifetimeMinutes,
 } = require('../../config/env');
 const { HttpError } = require('../../utils/httpError');
+const { text: validateText } = require('../../middleware/validate');
 
 const hashRefreshToken = (token) =>
   crypto.createHash('sha256').update(token).digest('hex');
@@ -118,10 +119,11 @@ async function refresh(refreshToken, userAgent) {
         session.expires_at, userAgent || session.user_agent]
     );
     await client.query('COMMIT');
+    const token = accessToken(user, nextId);
     return {
       user,
-      token: accessToken(user, nextId),
-      accessToken: accessToken(user, nextId),
+      token,
+      accessToken: token,
       refreshToken: nextRefresh,
     };
   } catch (error) {
@@ -133,10 +135,14 @@ async function refresh(refreshToken, userAgent) {
 }
 
 async function register(username, password, displayName = username, userAgent) {
-  if (!username || username.length < 3) throw new HttpError(400, 'Username must be at least 3 characters');
-  if (!password || password.length < 6) throw new HttpError(400, 'Password must be at least 6 characters');
-  const name = displayName.trim();
-  if (!name) throw new HttpError(400, 'Display name is required');
+  const usernameText = validateText(username, 'Username', 32);
+  if (!/^[a-zA-Z0-9_]+$/.test(usernameText)) {
+    throw new HttpError(400, 'Username may contain only letters, numbers, and underscores');
+  }
+  if (usernameText.length < 3) throw new HttpError(400, 'Username must be at least 3 characters');
+  const passwordText = validateText(password, 'Password', 256);
+  if (passwordText.length < 6) throw new HttpError(400, 'Password must be at least 6 characters');
+  const name = validateText(displayName, 'Display name', 64);
   const hash = await bcrypt.hash(password, 12);
   try {
     const { rows } = await db.query(
@@ -144,7 +150,7 @@ async function register(username, password, displayName = username, userAgent) {
        VALUES ($1, $2, $3)
        RETURNING id, username, display_name AS "displayName",
                  avatar_url AS "avatarUrl", bio`,
-      [username, name, hash]
+      [usernameText, name, hash]
     );
     return { user: rows[0], ...(await createSession(rows[0], userAgent)) };
   } catch (e) {
@@ -154,7 +160,11 @@ async function register(username, password, displayName = username, userAgent) {
 }
 
 async function login(username, password, userAgent) {
-  const { rows } = await db.query('SELECT * FROM users WHERE username = $1', [username]);
+  const usernameText = validateText(username, 'Username', 32);
+  if (!/^[a-zA-Z0-9_]+$/.test(usernameText)) {
+    throw new HttpError(401, 'Invalid username or password');
+  }
+  const { rows } = await db.query('SELECT * FROM users WHERE username = $1', [usernameText]);
   const row = rows[0];
   if (!row || !(await bcrypt.compare(password || '', row.password_hash))) {
     throw new HttpError(401, 'Invalid username or password');
@@ -167,7 +177,7 @@ async function login(username, password, userAgent) {
 }
 
 async function updateDisplayName(userId, displayName) {
-  const name = (displayName || '').trim();
+  const name = validateText(displayName, 'Display name', 64);
   if (!name) throw new HttpError(400, 'Display name is required');
   if (name.length > 64) throw new HttpError(400, 'Display name must be at most 64 characters');
   const { rows } = await db.query(
@@ -178,7 +188,7 @@ async function updateDisplayName(userId, displayName) {
 }
 
 async function updateBio(userId, bio) {
-  const text = (bio || '').trim();
+  const text = validateText(bio, 'Bio', 500, false);
   if (text.length > 500) throw new HttpError(400, 'Bio must be at most 500 characters');
   const { rows } = await db.query(
     `UPDATE users SET bio = $1 WHERE id = $2
@@ -213,15 +223,17 @@ async function revokeAllSessions(userId) {
 }
 
 async function changePassword(userId, currentPassword, newPassword, userAgent) {
-  if (!newPassword || newPassword.length < 6) throw new HttpError(400, 'New password must be at least 6 characters');
+  const nextPassword = validateText(newPassword, 'New password', 256);
+  if (nextPassword.length < 6) throw new HttpError(400, 'New password must be at least 6 characters');
   const existing = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
-  if (!existing.rows[0] || !(await bcrypt.compare(currentPassword || '', existing.rows[0].password_hash))) {
+  const current = validateText(currentPassword, 'Current password', 256);
+  if (!existing.rows[0] || !(await bcrypt.compare(current, existing.rows[0].password_hash))) {
     throw new HttpError(401, 'Current password is incorrect');
   }
-  if (await bcrypt.compare(newPassword, existing.rows[0].password_hash)) {
+  if (await bcrypt.compare(nextPassword, existing.rows[0].password_hash)) {
     throw new HttpError(400, 'New password must differ from the current password');
   }
-  const hash = await bcrypt.hash(newPassword, 12);
+  const hash = await bcrypt.hash(nextPassword, 12);
   const { rows } = await db.query(
     `UPDATE users SET password_hash = $1 WHERE id = $2
      RETURNING id, username, display_name AS "displayName", avatar_url AS "avatarUrl", bio`,
@@ -229,6 +241,30 @@ async function changePassword(userId, currentPassword, newPassword, userAgent) {
   );
   await revokeAllSessions(userId);
   return { user: rows[0], ...(await createSession(rows[0], userAgent)) };
+}
+
+async function deleteAccount(userId, password) {
+  const current = validateText(password, 'Password', 256);
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      'SELECT password_hash, avatar_url AS "avatarUrl" FROM users WHERE id = $1 FOR UPDATE',
+      [userId]
+    );
+    const user = result.rows[0];
+    if (!user || !(await bcrypt.compare(current, user.password_hash))) {
+      throw new HttpError(401, 'Password is incorrect');
+    }
+    await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    await client.query('COMMIT');
+    return { oldAvatarUrl: user.avatarUrl };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function listSessions(userId, currentSessionId) {
@@ -247,5 +283,6 @@ async function listSessions(userId, currentSessionId) {
 module.exports = {
   register, login, refresh, updateDisplayName, updateBio, updateAvatar,
   changePassword, revokeSession, revokeAllSessions, listSessions,
+  deleteAccount,
   verifyToken, validateToken,
 };

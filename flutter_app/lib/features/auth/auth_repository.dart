@@ -96,6 +96,10 @@ class AuthRepository {
 
   Future<void> logoutAll() async => api.post('/auth/logout-all', {});
 
+  Future<void> deleteAccount(String password) async {
+    await api.delete('/auth/me', body: {'password': password});
+  }
+
   Future<AuthSession> _auth(
       String path, String username, String password) async {
     final data =

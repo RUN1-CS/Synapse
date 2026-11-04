@@ -56,6 +56,16 @@ class AuthProvider extends ChangeNotifier {
     await logout();
   }
 
+  Future<void> deleteAccount(String password) async {
+    await _repo.deleteAccount(password);
+    await _repo.clear();
+    user = null;
+    token = null;
+    _api.token = null;
+    _api.refreshToken = null;
+    notifyListeners();
+  }
+
   Future<void> _run(Future<AuthSession> Function() action) async {
     busy = true;
     error = null;

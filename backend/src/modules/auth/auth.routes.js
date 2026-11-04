@@ -2,12 +2,23 @@ const router = require('express').Router();
 const controller = require('./auth.controller');
 const requireAuth = require('./auth.middleware');
 const upload = require('./avatar.upload');
+const {
+  authRateLimitWindowSeconds,
+  authRateLimitMaxRequests,
+} = require('../../config/env');
+const rateLimit = require('../../middleware/rateLimit');
 
-router.post('/register', controller.register);
-router.post('/login', controller.login);
-router.post('/refresh', controller.refresh);
+const authLimit = rateLimit({
+  windowMs: authRateLimitWindowSeconds * 1000,
+  max: authRateLimitMaxRequests,
+});
+
+router.post('/register', authLimit, controller.register);
+router.post('/login', authLimit, controller.login);
+router.post('/refresh', authLimit, controller.refresh);
 router.post('/logout', requireAuth, controller.logout);
 router.post('/logout-all', requireAuth, controller.logoutAll);
+router.delete('/me', requireAuth, controller.deleteAccount);
 router.get('/sessions', requireAuth, controller.sessions);
 router.delete('/sessions/:sessionId', requireAuth, controller.revokeSession);
 router.patch('/me', requireAuth, controller.updateDisplayName);

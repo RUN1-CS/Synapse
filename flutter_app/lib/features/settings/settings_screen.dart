@@ -5,6 +5,7 @@ import '../auth/auth_provider.dart';
 import '../chat/chat_provider.dart';
 import '../../core/theme_settings.dart';
 import '../profile/profile_screen.dart';
+import '../../core/api_client.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -108,6 +109,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _deleteAccount() async {
+    final password = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete account permanently?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'This will Delete the account from the face of the Earth. '
+                'Your messages, profile, relationships, sessions, and settings '
+                'will be permanently removed.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: password,
+                obscureText: true,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Enter your password to continue',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      password.dispose();
+      return;
+    }
+    final auth = context.read<AuthProvider>();
+    try {
+      await auth.deleteAccount(password.text);
+      context.read<ChatProvider>().stop();
+      await context.read<ThemeSettings>().clearForDeletedAccount();
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      }
+    } finally {
+      password.dispose();
+    }
+  }
+
   Future<void> _showSessions() async {
     final auth = context.read<AuthProvider>();
     var sessions = await auth.sessions();
@@ -125,9 +189,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: Theme.of(context).textTheme.titleLarge),
               for (final session in sessions)
                 ListTile(
-                  leading: Icon(session.current
-                      ? Icons.phone_android
-                      : Icons.devices),
+                  leading: Icon(
+                      session.current ? Icons.phone_android : Icons.devices),
                   title: Text(session.current ? 'This device' : 'Other device'),
                   subtitle: Text(
                       '${session.userAgent ?? 'Unknown client'}\nLast active: ${session.lastUsedAt}'),
@@ -353,6 +416,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: const Icon(Icons.logout),
               title: const Text('Log out'),
               onTap: _logout,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.delete_forever,
+                  color: Theme.of(context).colorScheme.error),
+              title: const Text('Delete account'),
+              subtitle: const Text(
+                  'Permanently remove your account and all related data.'),
+              onTap: auth.busy ? null : _deleteAccount,
             ),
           ),
         ],

@@ -43,8 +43,15 @@ class ApiClient {
               http.patch(_uri(path), headers: _headers, body: jsonEncode(body)),
           path);
 
-  Future<dynamic> delete(String path) async =>
-      _request(() => http.delete(_uri(path), headers: _headers), path);
+  Future<dynamic> delete(String path, {Map<String, dynamic>? body}) async =>
+      _request(
+        () => http.delete(
+          _uri(path),
+          headers: _headers,
+          body: body == null ? null : jsonEncode(body),
+        ),
+        path,
+      );
 
   Future<dynamic> upload(
       String path, String field, List<int> bytes, String filename) async {
