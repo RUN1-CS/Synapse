@@ -1,9 +1,9 @@
 const db = require('../../config/db');
 const { HttpError } = require('../../utils/httpError');
 
-async function listUsers(userId) {
+async function listUsers(userId, search = '') {
   const { rows } = await db.query(
-    `SELECT u.id, u.username, u.display_name AS "displayName", u.avatar_url AS "avatarUrl",
+    `SELECT u.id, u.username, u.display_name AS "displayName", u.avatar_url AS "avatarUrl", u.bio,
        CASE
          WHEN EXISTS (SELECT 1 FROM friend_requests f WHERE f.status = 'accepted'
            AND ((f.requester_id = $1 AND f.recipient_id = u.id)
@@ -17,10 +17,19 @@ async function listUsers(userId) {
        EXISTS (SELECT 1 FROM muted_users m WHERE m.muter_id = $1 AND m.muted_id = u.id) AS muted,
        EXISTS (SELECT 1 FROM blocked_users b WHERE b.blocker_id = $1 AND b.blocked_id = u.id) AS blocked,
        EXISTS (SELECT 1 FROM blocked_users b WHERE b.blocker_id = u.id AND b.blocked_id = $1) AS "blockedByUser"
-     FROM users u WHERE u.id <> $1 ORDER BY u.display_name`,
-    [userId]
+     FROM users u WHERE u.id <> $1
+       AND (u.username ILIKE $2 OR u.display_name ILIKE $2)
+     ORDER BY u.display_name`,
+    [userId, `%${search}%`]
   );
   return rows;
+}
+
+async function profile(userId, otherUserId) {
+  const rows = await listUsers(userId);
+  const user = rows.find((item) => item.id === Number(otherUserId));
+  if (!user) throw new HttpError(404, 'User not found');
+  return user;
 }
 
 async function assertFriends(userId, otherUserId) {
@@ -55,6 +64,11 @@ async function requestFriend(userId, otherUserId) {
      DO UPDATE SET status = 'pending', created_at = now()
      RETURNING id`,
     [userId, other]
+  );
+  await db.query(
+    `INSERT INTO notifications (recipient_id, actor_id, type, friend_request_id)
+     VALUES ($1, $2, 'friend_request', $3)`,
+    [other, userId, result.rows[0].id]
   );
   return result.rows[0];
 }
@@ -109,7 +123,6 @@ async function listForUser(userId) {
             latest.username AS "latestUsername",
             latest.display_name AS "latestDisplayName",
             latest.avatar_url AS "latestAvatarUrl",
-            latest.display_name AS "latestDisplayName",
             latest.created_at AS "latestCreatedAt"
      FROM conversations c
      JOIN users other ON other.id = CASE
@@ -159,6 +172,6 @@ async function assertMember(conversationId, userId) {
 }
 
 module.exports = {
-  listUsers, listForUser, getOrCreate, assertMember, requestFriend,
+  listUsers, profile, listForUser, getOrCreate, assertMember, requestFriend,
   respondFriend, setMuted, setBlocked,
 };

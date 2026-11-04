@@ -33,6 +33,13 @@ class AuthRepository {
     return session;
   }
 
+  Future<AuthSession> updateBio(String bio) async {
+    final data = await api.patch('/auth/me/bio', {'bio': bio});
+    final session = AuthSession(User.fromJson(data['user']), data['token']);
+    await _save(session);
+    return session;
+  }
+
   Future<AuthSession> _auth(
       String path, String username, String password) async {
     final data =

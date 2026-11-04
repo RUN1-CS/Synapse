@@ -29,6 +29,7 @@ class AuthProvider extends ChangeNotifier {
       _run(() => _repo.updateDisplayName(name));
   Future<void> updateAvatar(List<int> bytes, String filename) =>
       _run(() => _repo.updateAvatar(bytes, filename));
+  Future<void> updateBio(String bio) => _run(() => _repo.updateBio(bio));
 
   Future<void> _run(Future<AuthSession> Function() action) async {
     busy = true;

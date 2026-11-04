@@ -14,6 +14,11 @@ exports.updateDisplayName = asyncHandler(async (req, res) => {
   res.json({ user, token: service.signToken(user) });
 });
 
+exports.updateBio = asyncHandler(async (req, res) => {
+  const user = await service.updateBio(req.user.id, req.body.bio);
+  res.json({ user, token: service.signToken(user) });
+});
+
 exports.updateAvatar = asyncHandler(async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: 'Profile picture is required' });

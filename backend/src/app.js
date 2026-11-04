@@ -10,6 +10,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/conversations', require('./modules/conversations/conversations.routes'));
+app.use('/api/notifications', require('./modules/notifications/notifications.routes'));
 
 // Error handler
 app.use((err, _req, res, _next) => {

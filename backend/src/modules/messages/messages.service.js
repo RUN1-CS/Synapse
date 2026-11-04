@@ -27,7 +27,28 @@ async function create({ conversationId, userId, content }) {
      ) SELECT ${COLUMNS} FROM m JOIN users u ON u.id = m.user_id`,
     [conversationId, userId, text]
   );
-  return rows[0];
+  const message = rows[0];
+  const recipient = await db.query(
+    `SELECT CASE WHEN user_one_id = $1 THEN user_two_id ELSE user_one_id END AS "recipientId"
+     FROM conversations WHERE id = $2`,
+    [userId, conversationId]
+  );
+  if (recipient.rows[0]) {
+    const suppressed = await db.query(
+      `SELECT EXISTS (SELECT 1 FROM muted_users WHERE muter_id = $1 AND muted_id = $2) AS muted,
+              EXISTS (SELECT 1 FROM blocked_users WHERE
+                (blocker_id = $1 AND blocked_id = $2) OR
+                (blocker_id = $2 AND blocked_id = $1)) AS blocked`,
+      [recipient.rows[0].recipientId, userId]
+    );
+    if (suppressed.rows[0].muted || suppressed.rows[0].blocked) return message;
+    await db.query(
+      `INSERT INTO notifications (recipient_id, actor_id, type, conversation_id)
+       VALUES ($1, $2, 'message', $3)`,
+      [recipient.rows[0].recipientId, userId, conversationId]
+    );
+  }
+  return message;
 }
 
 module.exports = { listByConversation, create };

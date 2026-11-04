@@ -1,4 +1,5 @@
 import '../../core/config.dart';
+import '../auth/user.dart';
 
 DateTime _parseDate(dynamic value) {
   if (value is DateTime) return value.toLocal();
@@ -91,5 +92,26 @@ class Message {
         avatarUrl: _absoluteUrl(j['avatarUrl']),
         content: '${j['content']}',
         createdAt: _parseDate(j['createdAt']),
+      );
+}
+
+class NotificationItem {
+  final int id;
+  final String type;
+  final User actor;
+  final int? friendRequestId;
+  NotificationItem({
+    required this.id,
+    required this.type,
+    required this.actor,
+    this.friendRequestId,
+  });
+  factory NotificationItem.fromJson(Map<String, dynamic> j) => NotificationItem(
+        id: _parseInt(j['id']),
+        type: '${j['type']}',
+        actor: User.fromJson(j..['id'] = j['actorId']),
+        friendRequestId: j['friendRequestId'] == null
+            ? null
+            : _parseInt(j['friendRequestId']),
       );
 }

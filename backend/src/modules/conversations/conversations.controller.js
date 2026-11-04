@@ -2,7 +2,11 @@ const service = require('./conversations.service');
 const { asyncHandler } = require('../../utils/httpError');
 
 exports.listUsers = asyncHandler(async (req, res) => {
-  res.json(await service.listUsers(req.user.id));
+  res.json(await service.listUsers(req.user.id, req.query.search || ''));
+});
+
+exports.profile = asyncHandler(async (req, res) => {
+  res.json(await service.profile(req.user.id, req.params.userId));
 });
 
 exports.list = asyncHandler(async (req, res) => {

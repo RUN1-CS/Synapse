@@ -16,6 +16,24 @@ class ChatRepository {
           .map((e) => User.fromJson(e))
           .toList();
 
+  Future<List<User>> searchUsers(String search) async => (await api.get(
+              '/conversations/users?search=${Uri.encodeQueryComponent(search)}')
+          as List)
+      .map((e) => User.fromJson(e))
+      .toList();
+
+  Future<User> profile(int userId) async =>
+      User.fromJson(Map<String, dynamic>.from(
+          await api.get('/conversations/users/$userId') as Map));
+
+  Future<List<NotificationItem>> notifications() async =>
+      (await api.get('/notifications') as List)
+          .map((e) => NotificationItem.fromJson(e))
+          .toList();
+
+  Future<void> markNotificationRead(int id) async =>
+      api.patch('/notifications/$id/read', {});
+
   Future<Conversation> conversationFor(User user) async {
     final data = Map<String, dynamic>.from(
         await api.post('/conversations', {'userId': user.id}) as Map);

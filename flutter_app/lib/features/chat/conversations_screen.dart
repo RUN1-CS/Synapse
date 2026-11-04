@@ -5,6 +5,8 @@ import '../auth/user.dart';
 import 'chat_provider.dart';
 import 'chat_screen.dart';
 import '../settings/settings_screen.dart';
+import '../notifications/notifications_screen.dart';
+import '../profile/profile_screen.dart';
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -27,6 +29,30 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         title: Text(
             'Messages · ${context.read<AuthProvider>().user?.username ?? ''}'),
         actions: [
+          IconButton(
+            icon: Badge(
+              isLabelVisible: chat.notifications.isNotEmpty,
+              label: Text('${chat.notifications.length}'),
+              child: const Icon(Icons.notifications),
+            ),
+            onPressed: () async {
+              await chat.loadNotifications();
+              if (!context.mounted) return;
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.account_circle),
+            tooltip: 'My profile',
+            onPressed: () {
+              final user = context.read<AuthProvider>().user;
+              if (user != null) {
+                Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => ProfileScreen(user: user, ownProfile: true)));
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Settings',
@@ -130,9 +156,32 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       context: context,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setState) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: TextField(
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Search users',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) async {
+                    if (value.trim().isEmpty) {
+                      setState(() => chat.users = []);
+                    } else {
+                      await chat.searchUsers(value.trim());
+                      setState(() {});
+                    }
+                  },
+                ),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
               for (final item in chat.users)
                 ListTile(
                   leading: CircleAvatar(
@@ -155,8 +204,14 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           !item.blocked &&
                           !item.blockedByUser
                       ? () => Navigator.pop(sheetContext, item)
-                      : null,
+                      : () {
+                          Navigator.push(sheetContext, MaterialPageRoute(
+                              builder: (_) => ProfileScreen(user: item)));
+                        },
                 ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

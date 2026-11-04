@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../auth/auth_provider.dart';
 import '../chat/chat_provider.dart';
 import '../../core/theme_settings.dart';
+import '../profile/profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,6 +15,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _displayName;
+  late final TextEditingController _bio;
   final Map<String, TextEditingController> _colors = {};
 
   @override
@@ -21,6 +23,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _displayName = TextEditingController(
         text: context.read<AuthProvider>().user?.displayName ?? '');
+    _bio = TextEditingController(
+        text: context.read<AuthProvider>().user?.bio ?? '');
     final theme = context.read<ThemeSettings>();
     for (final entry in {
       'primary': theme.primary,
@@ -36,6 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _displayName.dispose();
+    _bio.dispose();
     for (final controller in _colors.values) {
       controller.dispose();
     }
@@ -56,9 +61,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _save() async {
     final auth = context.read<AuthProvider>();
     await auth.updateDisplayName(_displayName.text);
+    await auth.updateBio(_bio.text);
     if (!mounted || auth.error != null) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Display name updated')),
+      const SnackBar(content: Text('Profile updated')),
     );
   }
 
@@ -100,6 +106,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               title: Text(displayName.isEmpty ? 'Account' : displayName),
               subtitle: Text('@${user?.username ?? ''}'),
+              onTap: user == null
+                  ? null
+                  : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => ProfileScreen(
+                                user: user, ownProfile: true)),
+                      ),
             ),
           ),
           const SizedBox(height: 16),
@@ -127,6 +141,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           FilledButton(
             onPressed: auth.busy ? null : _save,
             child: const Text('Save display name'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _bio,
+            maxLength: 500,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Bio',
+              border: OutlineInputBorder(),
+            ),
           ),
           if (auth.error != null)
             Padding(

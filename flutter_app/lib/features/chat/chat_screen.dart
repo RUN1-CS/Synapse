@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../auth/auth_provider.dart';
+import '../auth/user.dart';
+import '../profile/profile_screen.dart';
 import 'chat_provider.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -52,6 +54,19 @@ class _ChatScreenState extends State<ChatScreen> {
             Text(chat.currentUser?.displayName ?? 'Direct message'),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: chat.currentUser == null
+                ? null
+                : () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              ProfileScreen(user: chat.currentUser!)),
+                    ),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -79,8 +94,23 @@ class _ChatScreenState extends State<ChatScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (!mine)
-                        Text(m.displayName,
-                            style: Theme.of(context).textTheme.labelSmall),
+                        InkWell(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProfileScreen(
+                                user: User(
+                                  id: m.userId,
+                                  username: m.username,
+                                  displayName: m.displayName,
+                                  avatarUrl: m.avatarUrl,
+                                ),
+                              ),
+                            ),
+                          ),
+                          child: Text(m.displayName,
+                              style: Theme.of(context).textTheme.labelSmall),
+                        ),
                       Text(m.content),
                     ],
                   ),

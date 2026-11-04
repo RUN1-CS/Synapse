@@ -5,6 +5,7 @@ class User {
   final String username;
   final String displayName;
   final String? avatarUrl;
+  final String bio;
   final String friendStatus;
   final bool muted;
   final bool blocked;
@@ -14,6 +15,7 @@ class User {
     required this.username,
     required this.displayName,
     this.avatarUrl,
+    this.bio = '',
     this.friendStatus = 'none',
     this.muted = false,
     this.blocked = false,
@@ -30,6 +32,7 @@ class User {
             j['username']?.toString() ??
             '',
         avatarUrl: _absoluteUrl(j['avatarUrl'] ?? j['avatar_url']),
+        bio: j['bio']?.toString() ?? '',
         friendStatus: j['friendStatus']?.toString() ?? 'none',
         muted: j['muted'] == true,
         blocked: j['blocked'] == true,
@@ -47,6 +50,7 @@ class User {
         'username': username,
         'displayName': displayName,
         'avatarUrl': avatarUrl,
+        'bio': bio,
         'friendStatus': friendStatus,
       };
 }

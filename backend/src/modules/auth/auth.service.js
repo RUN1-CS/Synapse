@@ -9,6 +9,7 @@ const signToken = (user) => jwt.sign(
     id: user.id,
     username: user.username,
     displayName: user.displayName,
+    bio: user.bio,
     avatarUrl: user.avatarUrl,
   },
   jwtSecret,
@@ -24,7 +25,7 @@ async function register(username, password, displayName = username) {
   const hash = await bcrypt.hash(password, 10);
   try {
     const { rows } = await db.query(
-      'INSERT INTO users (username, display_name, password_hash) VALUES ($1, $2, $3) RETURNING id, username, display_name AS "displayName", avatar_url AS "avatarUrl"',
+      'INSERT INTO users (username, display_name, password_hash) VALUES ($1, $2, $3) RETURNING id, username, display_name AS "displayName", avatar_url AS "avatarUrl", bio',
       [username, name, hash]
     );
     return { user: rows[0], token: signToken(rows[0]) };
@@ -45,6 +46,7 @@ async function login(username, password) {
     username: row.username,
     displayName: row.display_name,
     avatarUrl: row.avatar_url,
+    bio: row.bio,
   };
   return { user, token: signToken(user) };
 }
@@ -54,8 +56,19 @@ async function updateDisplayName(userId, displayName) {
   if (!name) throw new HttpError(400, 'Display name is required');
   if (name.length > 64) throw new HttpError(400, 'Display name must be at most 64 characters');
   const { rows } = await db.query(
-    'UPDATE users SET display_name = $1 WHERE id = $2 RETURNING id, username, display_name AS "displayName", avatar_url AS "avatarUrl"',
+    'UPDATE users SET display_name = $1 WHERE id = $2 RETURNING id, username, display_name AS "displayName", avatar_url AS "avatarUrl", bio',
     [name, userId]
+  );
+  return rows[0];
+}
+
+async function updateBio(userId, bio) {
+  const text = (bio || '').trim();
+  if (text.length > 500) throw new HttpError(400, 'Bio must be at most 500 characters');
+  const { rows } = await db.query(
+    `UPDATE users SET bio = $1 WHERE id = $2
+     RETURNING id, username, display_name AS "displayName", avatar_url AS "avatarUrl", bio`,
+    [text, userId]
   );
   return rows[0];
 }
@@ -68,7 +81,7 @@ async function updateAvatar(userId, filename) {
   const { rows } = await db.query(
     `UPDATE users SET avatar_url = $1
      WHERE id = $2
-     RETURNING id, username, display_name AS "displayName", avatar_url AS "avatarUrl"`,
+     RETURNING id, username, display_name AS "displayName", avatar_url AS "avatarUrl", bio`,
     [`/uploads/${filename}`, userId]
   );
   return { user: rows[0], oldAvatarUrl: previous.rows[0]?.avatarUrl };
@@ -78,6 +91,7 @@ module.exports = {
   register,
   login,
   updateDisplayName,
+  updateBio,
   updateAvatar,
   verifyToken,
   signToken,

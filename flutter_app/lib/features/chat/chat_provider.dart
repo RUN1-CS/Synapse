@@ -20,6 +20,7 @@ class ChatProvider extends ChangeNotifier {
   List<Conversation> conversations = [];
   final Set<int> unreadConversationIds = {};
   List<User> users = [];
+  List<NotificationItem> notifications = [];
   User? currentUser;
   Conversation? current;
   List<Message> messages = [];
@@ -30,7 +31,7 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> start(String token) async {
     _socket.connect(token);
-    await Future.wait([loadUsers(), loadConversations()]);
+    await Future.wait([loadConversations(), loadNotifications()]);
   }
 
   void stop() {
@@ -64,6 +65,32 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> searchUsers(String search) async {
+    try {
+      users = await _repo.searchUsers(search);
+      error = null;
+    } on ApiException catch (e) {
+      error = e.message;
+    }
+    notifyListeners();
+  }
+
+  Future<void> loadNotifications() async {
+    try {
+      notifications = await _repo.notifications();
+      error = null;
+    } on ApiException catch (e) {
+      error = e.message;
+    }
+    notifyListeners();
+  }
+
+  Future<void> markNotificationRead(NotificationItem item) async {
+    await _repo.markNotificationRead(item.id);
+    notifications.removeWhere((n) => n.id == item.id);
+    notifyListeners();
+  }
+
   Future<void> requestFriend(User user) async {
     await _repo.requestFriend(user.id);
     await loadUsers();
@@ -83,6 +110,8 @@ class ChatProvider extends ChangeNotifier {
     await _repo.setBlocked(user.id, blocked);
     await loadUsers();
   }
+
+  Future<User> loadProfile(int userId) => _repo.profile(userId);
 
   Future<bool> openConversation(User user) async {
     try {

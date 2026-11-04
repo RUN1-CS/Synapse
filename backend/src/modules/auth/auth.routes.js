@@ -6,6 +6,7 @@ const upload = require('./avatar.upload');
 router.post('/register', controller.register);
 router.post('/login', controller.login);
 router.patch('/me', requireAuth, controller.updateDisplayName);
+router.patch('/me/bio', requireAuth, controller.updateBio);
 router.patch('/me/avatar', requireAuth, upload.single('avatar'), controller.updateAvatar);
 
 module.exports = router;
