@@ -112,6 +112,14 @@ class _ChatScreenState extends State<ChatScreen> {
                               style: Theme.of(context).textTheme.labelSmall),
                         ),
                       Text(m.content),
+                      if (mine)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            m.status,
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ),
                     ],
                   ),
                 );

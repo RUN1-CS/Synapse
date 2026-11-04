@@ -42,6 +42,7 @@ module.exports = {
   messageRateLimitWindowSeconds: integer('MESSAGE_RATE_LIMIT_WINDOW_SECONDS', '60'),
   messageRateLimitMaxMessages: integer('MESSAGE_RATE_LIMIT_MAX_MESSAGES', '30'),
   messageMaxLength: integer('MESSAGE_MAX_LENGTH', '4000'),
+  messageHistoryPageSize: integer('MESSAGE_HISTORY_PAGE_SIZE', '50'),
   websocketRateLimitWindowSeconds: integer('WEBSOCKET_RATE_LIMIT_WINDOW_SECONDS', '10'),
   websocketRateLimitMaxEvents: integer('WEBSOCKET_RATE_LIMIT_MAX_EVENTS', '40'),
   websocketConnectionWindowSeconds: integer('WEBSOCKET_CONNECTION_WINDOW_SECONDS', '60'),

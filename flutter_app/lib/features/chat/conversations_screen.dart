@@ -18,7 +18,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<ChatProvider>().start(context.read<AuthProvider>().token!);
+    final auth = context.read<AuthProvider>();
+    context.read<ChatProvider>().start(
+          auth.token!,
+          auth.user!.id,
+        );
   }
 
   @override

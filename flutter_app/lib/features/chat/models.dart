@@ -69,8 +69,10 @@ class Message {
   final String username;
   final String displayName;
   final String? avatarUrl;
+  final String? clientMessageId;
   final String content;
   final DateTime createdAt;
+  final String status;
 
   Message({
     required this.id,
@@ -79,8 +81,10 @@ class Message {
     required this.username,
     required this.displayName,
     this.avatarUrl,
+    this.clientMessageId,
     required this.content,
     required this.createdAt,
+    this.status = 'sent',
   });
 
   factory Message.fromJson(Map<String, dynamic> j) => Message(
@@ -90,8 +94,26 @@ class Message {
         username: '${j['username']}',
         displayName: j['displayName']?.toString() ?? '${j['username']}',
         avatarUrl: _absoluteUrl(j['avatarUrl']),
+        clientMessageId: j['clientMessageId']?.toString(),
         content: '${j['content']}',
         createdAt: _parseDate(j['createdAt']),
+        status: j['status']?.toString() ?? 'sent',
+      );
+}
+
+class MessageStatus {
+  final int messageId;
+  final int conversationId;
+  final String status;
+  MessageStatus({
+    required this.messageId,
+    required this.conversationId,
+    required this.status,
+  });
+  factory MessageStatus.fromJson(Map<String, dynamic> json) => MessageStatus(
+        messageId: _parseInt(json['messageId']),
+        conversationId: _parseInt(json['conversationId']),
+        status: json['status']?.toString() ?? 'sent',
       );
 }
 

@@ -11,10 +11,14 @@ class ChatProvider extends ChangeNotifier {
   final SocketService _socket;
   StreamSubscription<Message>? _sub;
   StreamSubscription<Message>? _notificationSub;
+  StreamSubscription<MessageStatus>? _statusSub;
+  StreamSubscription<void>? _connectedSub;
 
   ChatProvider(this._repo, this._socket) {
     _sub = _socket.messages.listen(_onMessage);
     _notificationSub = _socket.notifications.listen(_onNotification);
+    _statusSub = _socket.statuses.listen(_onStatus);
+    _connectedSub = _socket.connected.listen((_) => _syncCurrent());
   }
 
   List<Conversation> conversations = [];
@@ -24,12 +28,15 @@ class ChatProvider extends ChangeNotifier {
   User? currentUser;
   Conversation? current;
   List<Message> messages = [];
+  final Set<String> pendingClientMessageIds = {};
   String? error;
+  int? selfUserId;
 
   bool isUnread(int conversationId) =>
       unreadConversationIds.contains(conversationId);
 
-  Future<void> start(String token) async {
+  Future<void> start(String token, int userId) async {
+    selfUserId = userId;
     _socket.connect(token);
     await Future.wait([loadConversations(), loadNotifications()]);
   }
@@ -40,8 +47,10 @@ class ChatProvider extends ChangeNotifier {
     conversations = [];
     unreadConversationIds.clear();
     currentUser = null;
+    selfUserId = null;
     current = null;
     messages = [];
+    pendingClientMessageIds.clear();
   }
 
   Future<void> loadConversations() async {
@@ -124,6 +133,12 @@ class ChatProvider extends ChangeNotifier {
       final history = await _repo.messages(current!.id);
       final known = history.map((m) => m.id).toSet();
       messages = [...history, ...messages.where((m) => !known.contains(m.id))];
+      for (final message in history) {
+        _socket.markDelivered(message.id);
+      }
+      if (messages.isNotEmpty) {
+        _socket.markRead(current!.id, messages.last.id);
+      }
       await loadConversations();
       error = null;
       notifyListeners();
@@ -146,14 +161,82 @@ class ChatProvider extends ChangeNotifier {
 
   void send(String text) {
     if (current == null || text.trim().isEmpty) return;
-    _socket.send(current!.id, text.trim());
+    final content = text.trim();
+    final clientMessageId = _socket.send(current!.id, content);
+    pendingClientMessageIds.add(clientMessageId);
+    messages = [
+      ...messages,
+      Message(
+        id: -DateTime.now().microsecondsSinceEpoch,
+        conversationId: current!.id,
+        userId: selfUserId ?? -1,
+        username: '',
+        displayName: 'You',
+        content: content,
+        createdAt: DateTime.now(),
+        clientMessageId: clientMessageId,
+        status: 'pending',
+      ),
+    ];
+    notifyListeners();
+  }
+
+  Future<void> _syncCurrent() async {
+    if (current == null) return;
+    _socket.joinConversation(current!.id);
+    final lastId = messages.isEmpty ? null : messages.last.id;
+    final incoming = await _repo.messages(current!.id, after: lastId);
+    final known = messages.map((m) => m.id).toSet();
+    messages = [
+      ...messages,
+      ...incoming.where((m) => !known.contains(m.id)),
+    ];
+    for (final message in incoming) {
+      _socket.markDelivered(message.id);
+    }
+    if (messages.isNotEmpty) _socket.markRead(current!.id, messages.last.id);
+    notifyListeners();
   }
 
   void _onMessage(Message m) {
     _updateConversation(m);
-    if (m.conversationId != current?.id || messages.any((x) => x.id == m.id))
+    final optimistic = m.clientMessageId == null
+        ? -1
+        : messages.indexWhere((x) => x.clientMessageId == m.clientMessageId);
+    if (optimistic >= 0) {
+      messages[optimistic] = m;
+      pendingClientMessageIds.remove(m.clientMessageId);
+      notifyListeners();
       return;
+    }
+    if (m.conversationId != current?.id ||
+        messages.any((x) =>
+            x.id == m.id ||
+            (m.clientMessageId != null &&
+                x.clientMessageId == m.clientMessageId))) return;
     messages = [...messages, m];
+    if (m.conversationId == current?.id) {
+      _socket.markRead(m.conversationId, m.id);
+    }
+    notifyListeners();
+  }
+
+  void _onStatus(MessageStatus status) {
+    final index = messages.indexWhere((m) => m.id == status.messageId);
+    if (index < 0) return;
+    final old = messages[index];
+    messages[index] = Message(
+      id: old.id,
+      conversationId: old.conversationId,
+      userId: old.userId,
+      username: old.username,
+      displayName: old.displayName,
+      avatarUrl: old.avatarUrl,
+      clientMessageId: old.clientMessageId,
+      content: old.content,
+      createdAt: old.createdAt,
+      status: status.status,
+    );
     notifyListeners();
   }
 
@@ -190,6 +273,8 @@ class ChatProvider extends ChangeNotifier {
   void dispose() {
     _sub?.cancel();
     _notificationSub?.cancel();
+    _statusSub?.cancel();
+    _connectedSub?.cancel();
     _socket.dispose();
     super.dispose();
   }

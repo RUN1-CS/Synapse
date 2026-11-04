@@ -62,8 +62,11 @@ class ChatRepository {
         .patch('/conversations/friends/$userId/block', {'blocked': blocked});
   }
 
-  Future<List<Message>> messages(int conversationId) async =>
-      (await api.get('/conversations/$conversationId/messages') as List)
+  Future<List<Message>> messages(int conversationId,
+          {int? before, int? after}) async =>
+      (await api.get('/conversations/$conversationId/messages?'
+              '${before == null ? '' : 'before=$before&'}'
+              '${after == null ? '' : 'after=$after'}') as List)
           .map((e) => Message.fromJson(e))
           .toList();
 }

@@ -70,7 +70,7 @@ module.exports = function initSockets(httpServer) {
           socket.user.id,
         );
         socket.join(conversationKey(conversationId));
-        if (typeof ack === "function") ack({ ok: true });
+        if (typeof ack === "function") ack({ ok: true, message: msg });
       } catch (e) {
         if (typeof ack === "function") ack({ ok: false, error: e.message });
       }
@@ -95,6 +95,7 @@ module.exports = function initSockets(httpServer) {
           content,
           clientMessageId,
         });
+        io.to(conversationKey(conversationId)).emit("message:created", msg);
         io.to(conversationKey(conversationId)).emit("new_message", msg);
         const { rows } = await db.query(
           `SELECT CASE WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END AS "recipientId",
@@ -109,6 +110,58 @@ module.exports = function initSockets(httpServer) {
         );
         if (rows[0] && !rows[0].muted && !rows[0].blocked)
           io.to(userKey(rows[0].recipientId)).emit("message_notification", msg);
+        if (typeof ack === "function") ack({ ok: true });
+      } catch (e) {
+        if (typeof ack === "function") ack({ ok: false, error: e.message });
+      }
+    });
+    socket.on("message:delivered", async ({ messageId }, ack) => {
+      if (!allowEvent()) {
+        if (typeof ack === "function") ack({ ok: false, error: "Too many events" });
+        return;
+      }
+      try {
+        const status = await messages.markDelivered(Number(messageId), socket.user.id);
+        if (status) {
+          const { rows } = await db.query(
+            'SELECT user_id AS "senderId", conversation_id AS "conversationId" FROM messages WHERE id = $1',
+            [messageId]
+          );
+          if (rows[0]) {
+            io.to(userKey(rows[0].senderId)).emit("message:delivered", {
+              messageId: Number(messageId),
+              conversationId: rows[0].conversationId,
+              status: "delivered",
+            });
+          }
+        }
+        if (typeof ack === "function") ack({ ok: true });
+      } catch (e) {
+        if (typeof ack === "function") ack({ ok: false, error: e.message });
+      }
+    });
+    socket.on("message:read", async ({ conversationId, messageId }, ack) => {
+      if (!allowEvent()) {
+        if (typeof ack === "function") ack({ ok: false, error: "Too many events" });
+        return;
+      }
+      try {
+        const status = await messages.markRead(
+          Number(conversationId), socket.user.id, Number(messageId)
+        );
+        if (status) {
+          const { rows } = await db.query(
+            'SELECT user_one_id AS "userOneId", user_two_id AS "userTwoId" FROM conversations WHERE id = $1',
+            [conversationId]
+          );
+          const other = rows[0]?.userOneId === socket.user.id
+            ? rows[0]?.userTwoId : rows[0]?.userOneId;
+          if (other) io.to(userKey(other)).emit("message:read", {
+            conversationId: Number(conversationId),
+            messageId: Number(messageId),
+            status: "read",
+          });
+        }
         if (typeof ack === "function") ack({ ok: true });
       } catch (e) {
         if (typeof ack === "function") ack({ ok: false, error: e.message });

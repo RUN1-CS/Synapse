@@ -15,7 +15,7 @@ Status: `[x]` shipped · `[ ]` planned · `[~]` partial or needs verification
 - [x] Add account deletion and data-retention behavior
 - [ ] Add automated backend and client coverage for authentication and authorization
 - [x] Establish secure configuration and secret management
-- [ ] Define message delivery and synchronization semantics
+- [x] Define message delivery and synchronization semantics
 
 ## Beta — Minimum viable chat
 
@@ -31,14 +31,14 @@ Status: `[x]` shipped · `[ ]` planned · `[~]` partial or needs verification
 - [ ] Add message editing and deletion
 - [ ] Add replies and quoted messages
 - [ ] Add typing indicators
-- [ ] Add message delivery status and read receipts
+- [x] Add message delivery status and read receipts
 - [ ] Add online, offline and idle presence
 - [ ] Add unread message indicators
 - [ ] Add conversation creation and invitation validation
-- [ ] Add message pagination and incremental history loading
-- [ ] Add WebSocket reconnection and missed-event recovery
-- [ ] Add duplicate message prevention through idempotency
-- [ ] Add authoritative server-side timestamps and message ordering
+- [x] Add message pagination and incremental history loading
+- [x] Add WebSocket reconnection and missed-event recovery
+- [x] Add duplicate message prevention through idempotency
+- [x] Add authoritative server-side timestamps and message ordering
 - [ ] Handle concurrent message updates and deletions
 - [ ] Add automated coverage for messaging and group authorization
 
