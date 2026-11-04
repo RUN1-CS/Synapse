@@ -1,157 +1,211 @@
-# Chat App
+# Synapse
 
-A modern chat application for real-time conversations, built to provide a simple and dependable messaging experience.
+Synapse is a Flutter direct-messaging application with a Node.js/Express
+backend, PostgreSQL persistence, and Socket.IO real-time events. The web client
+is served by nginx and the complete local stack can be run with Docker Compose.
 
-## Contents
+## Current status
 
-- [Overview](#overview)
-- [Features](#features)
-- [Getting started](#getting-started)
-- [Configuration](#configuration)
-- [Development](#development)
-- [Testing](#testing)
-- [Project structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
+The core direct-message experience is implemented, including:
 
-## Overview
+- Registration, login, short-lived access tokens, and rotating refresh tokens.
+- Per-device sessions, session revocation, logout-all-devices, and password changes.
+- Password-confirmed permanent account deletion, including related data and avatars.
+- User profiles with usernames, display names, bios, and WebP avatars.
+- Searchable users, friend requests, friendships, muting, and blocking.
+- Direct conversations with persisted message history.
+- Real-time messaging over Socket.IO with HTTP history and recovery.
+- `pending`, `sent`, `delivered`, and `read` message lifecycle states.
+- Client-message idempotency to prevent duplicate submissions.
+- Pagination, reconnect synchronization, delivery acknowledgements, and read cursors.
+- Persisted notifications, unread indicators, and notification center support.
+- Light/dark presets and customizable theme colors.
+- Configurable request, upload, authentication, message, WebSocket, and duplicate
+  request limits.
+- Automated backend and Flutter test coverage for authentication and messaging
+  synchronization behavior.
 
-This project is a foundation for a chat experience with a clean interface and room to grow. Use it to exchange messages, organize conversations, and extend the application with the features your users need.
+Group conversations, attachments beyond profile pictures, push notifications,
+message editing/deletion, and voice/video features are not implemented yet.
+See [TO-DO-LIST.md](./TO-DO-LIST.md) for the roadmap.
 
-## Features
+## Architecture
 
-- Real-time conversation experience
-- Clear, responsive chat interface
-- Direct-message conversation and message history
-- Extensible authentication and user-management integration
-- Configuration through environment variables
-- A structure designed for local development and production deployment
+```text
+Flutter web client
+        │ HTTP / Socket.IO
+        ▼
+Node.js + Express + Socket.IO
+        │
+        ▼
+PostgreSQL
+```
 
-## Getting started
+The backend runs migrations from
+`backend/src/db/migrations/` automatically on startup. PostgreSQL is the
+authoritative source for users, relationships, conversations, messages,
+notifications, sessions, delivery acknowledgements, and read cursors.
+
+## Getting started with Docker
 
 ### Prerequisites
 
-Install Docker and Docker Compose, then clone the repository:
+- Docker
+- Docker Compose
 
-```bash
-git clone https://github.com/RUN1-CS/Synapse.git
-cd chat-app
-```
-
-Build and start the application and its services with Docker Compose:
-
-```bash
-docker compose up --build
-```
-
-If the project provides an example environment file, create a local copy before starting:
+Create a local environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Stop the containers with:
+Change `JWT_SECRET` to a long, random value before using the application outside
+local development. Start the stack:
+
+```bash
+docker compose up --build
+```
+
+Open the web client at <http://localhost:8080>. The backend health endpoint is
+available at <http://localhost:3000/health>.
+
+Stop the stack:
 
 ```bash
 docker compose down
 ```
 
-Open the application at the local URL exposed by Docker.
+To remove the PostgreSQL data volume as well:
+
+```bash
+docker compose down -v
+```
 
 ## Configuration
 
-Keep secrets out of source control. Typical configuration values may include:
+The backend reads environment variables through `backend/src/config/env.js`.
+The complete example is in [.env.example](./.env.example).
 
-| Variable            | Description                                     | Required |
-| ------------------- | ----------------------------------------------- | -------- |
-| `POSTGRES_USER`     | PostgreSQL database user                        | Yes      |
-| `POSTGRES_PASSWORD` | PostgreSQL database password                    | Yes      |
-| `POSTGRES_DB`       | PostgreSQL database name                        | Yes      |
-| `JWT_SECRET`        | Secret used to sign and verify JWTs             | Yes      |
-| `PORT`              | Backend port; set to `3000` in Compose          | No       |
-| `DATABASE_URL`      | Built from the PostgreSQL variables for backend | Derived  |
+| Variable                                                                    | Purpose                              |                   Default |
+| --------------------------------------------------------------------------- | ------------------------------------ | ------------------------: |
+| `POSTGRES_USER`                                                             | PostgreSQL user                      |                    `chat` |
+| `POSTGRES_PASSWORD`                                                         | PostgreSQL password                  |           `chat_password` |
+| `POSTGRES_DB`                                                               | PostgreSQL database name             |                    `chat` |
+| `DATABASE_URL`                                                              | Backend PostgreSQL connection string |           Compose-derived |
+| `PORT`                                                                      | Backend HTTP port                    |                    `3000` |
+| `JWT_SECRET`                                                                | JWT signing secret                   | Development fallback only |
+| `JWT_MAX_LIFETIME_DAYS`                                                     | Maximum refresh/session lifetime     |                       `7` |
+| `JWT_ACCESS_LIFETIME_MINUTES`                                               | Access-token lifetime                |                      `15` |
+| `JSON_BODY_LIMIT_BYTES`                                                     | JSON request body limit              |                 `1048576` |
+| `AVATAR_MAX_BYTES`                                                          | Profile image upload limit           |                 `5242880` |
+| `MULTIPART_MAX_FIELDS` / `MULTIPART_MAX_PARTS`                              | Multipart request limits             |                `8` / `10` |
+| `HTTP_RATE_LIMIT_WINDOW_SECONDS` / `HTTP_RATE_LIMIT_MAX_REQUESTS`           | General HTTP throttling              |              `60` / `120` |
+| `AUTH_RATE_LIMIT_WINDOW_SECONDS` / `AUTH_RATE_LIMIT_MAX_REQUESTS`           | Authentication throttling            |              `900` / `10` |
+| `MESSAGE_RATE_LIMIT_WINDOW_SECONDS` / `MESSAGE_RATE_LIMIT_MAX_MESSAGES`     | Message sending limits               |               `60` / `30` |
+| `MESSAGE_MAX_LENGTH`                                                        | Maximum message length               |                    `4000` |
+| `MESSAGE_HISTORY_PAGE_SIZE`                                                 | Maximum history page size            |                      `50` |
+| `WEBSOCKET_RATE_LIMIT_WINDOW_SECONDS` / `WEBSOCKET_RATE_LIMIT_MAX_EVENTS`   | WebSocket event throttling           |               `10` / `40` |
+| `WEBSOCKET_CONNECTION_WINDOW_SECONDS` / `WEBSOCKET_CONNECTION_MAX_ATTEMPTS` | WebSocket connection throttling      |               `60` / `20` |
+| `DUPLICATE_REQUEST_WINDOW_SECONDS`                                          | Duplicate request suppression window |                      `10` |
 
-Use the project's actual environment variable names as the source of truth; remove unused entries from local configuration.
+When using Compose, the database and JWT settings are passed by
+[compose.yml](./compose.yml). Pass any additional limit overrides in the
+backend service's `environment` section when deploying them through Compose.
 
-## Development
+## Local development
 
-Use Docker Compose for development so the commands run in the project's containers:
-
-```bash
-docker compose up --build       # Build and start the development stack
-docker compose logs -f          # Follow service logs
-docker compose ps               # List running services
-docker compose down             # Stop the stack
-```
-
-Run project-specific commands inside the appropriate service container, replacing `<service>` with its Compose service name:
-
-```bash
-docker compose run --rm <service> <command>
-```
-
-Before opening a pull request, run the relevant build, lint, formatting, and test commands in the containers.
-
-## Testing
-
-Run the project's test suite with:
+### Backend
 
 ```bash
-<package-manager> test
+cd backend
+npm install
+npm run dev
 ```
 
-Add tests for new behavior and regression tests for fixed bugs. Prefer testing user-visible behavior and important error paths.
+The backend expects PostgreSQL and a `DATABASE_URL`. It exposes `/health`,
+REST APIs under `/api`, static avatars under `/uploads`, and Socket.IO at
+`/socket.io`.
+
+### Flutter client
+
+```bash
+cd flutter_app
+flutter pub get
+flutter run -d chrome
+```
+
+For a non-web target, override the backend URL:
+
+```bash
+flutter run --dart-define=API_URL=http://10.0.2.2:3000
+```
+
+The web client uses the current browser origin by default, which allows nginx
+to proxy `/api`, `/uploads`, and `/socket.io`.
+
+## Testing and validation
+
+Run backend tests:
+
+```bash
+cd backend
+npm test
+```
+
+Run Flutter analysis and tests:
+
+```bash
+cd flutter_app
+flutter analyze
+flutter test
+```
+
+Build the Flutter web client:
+
+```bash
+cd flutter_app
+flutter build web
+```
+
+The test suites cover authentication input validation, message idempotency,
+cursor pagination, delivery/read persistence, model parsing, optimistic
+messages, persisted-message reconciliation, and reconnect synchronization.
 
 ## Project structure
 
-The exact layout may vary, but a typical organization is:
-
 ```text
 chat-app/
-│
-├── backend/                         # Node.js backend
-│   └── src/
-│       ├── config/                  # Environment and database configuration
-│       ├── db/
-│       │   └── migrations/          # SQL schema migrations
-│       ├── modules/                 # Feature-oriented backend modules
-│       │   ├── auth/                # Authentication, authorization and sessions
-│       │   ├── messages/            # Message handling and persistence
-│       │   └── conversations/       # Direct-message conversations
-│       ├── sockets/                 # Real-time communication (Socket.IO)
-│       └── utils/                   # Shared utilities and error handling
-│
-├── flutter_app/                     # Cross-platform Flutter client
+├── backend/
+│   ├── src/
+│   │   ├── config/                 # Environment and PostgreSQL configuration
+│   │   ├── db/migrations/          # Ordered schema migrations
+│   │   ├── middleware/             # Validation, throttling, deduplication
+│   │   ├── modules/
+│   │   │   ├── auth/               # Auth, profiles, sessions, avatars
+│   │   │   ├── conversations/      # DMs, users, friendships, relationships
+│   │   │   ├── messages/           # History, lifecycle, idempotency
+│   │   │   └── notifications/      # Notification center APIs
+│   │   └── sockets/                # Socket.IO authentication and events
+│   └── test/                       # Node.js backend tests
+├── flutter_app/
 │   ├── lib/
-│   │   ├── core/                    # Shared infrastructure (API, configuration)
-│   │   └── features/                # Feature-oriented application code
-│   │       ├── auth/                # Login, user state and authentication
-│       │       └── chat/                # Direct messages, contacts and sockets
-│   │
-│   ├── ios/                         # iOS native project (Xcode)
-│   ├── linux/                       # Linux native project (GTK)
-│   ├── macos/                       # macOS native project (Xcode)
-│   ├── windows/                     # Windows native project
-│   ├── web/                         # Web entry point, manifest and icons
-│   └── test/                        # Flutter tests
-│
-├── compose.yml                      # Container orchestration
-├── .gitignore                       # Git exclusions
-└── README.md                        # Project documentation
+│   │   ├── core/                   # API client, configuration, themes
+│   │   └── features/               # Auth, chat, settings, profiles
+│   └── test/                       # Flutter tests
+├── compose.yml                     # PostgreSQL, backend, and web services
+├── .env.example                    # Configuration template
+├── TO-DO-LIST.md                   # Product roadmap
+└── README.md
 ```
-
-Keep UI, domain logic, data access, and integration code separated where practical so each area remains easy to test and maintain.
 
 ## Contributing
 
-1.  Create a focused branch from the default branch.
-2.  Make the smallest change that solves the problem.
-3.  Add or update tests and documentation as needed.
-4.  Run formatting, linting, tests, and a production build.
-5.  Open a pull request with a concise description of the change and its verification steps.
-
-Do not commit credentials, private keys, generated artifacts, or user data.
+1. Create a focused branch.
+2. Keep changes scoped and preserve existing behavior.
+3. Add or update automated tests and documentation.
+4. Run backend tests, `flutter analyze`, Flutter tests, and relevant builds.
+5. Do not commit credentials, private keys, user data, or generated build output.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. See [LICENSE](./LICENSE).
