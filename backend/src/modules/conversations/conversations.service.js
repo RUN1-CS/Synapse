@@ -3,7 +3,7 @@ const { HttpError } = require('../../utils/httpError');
 
 async function listUsers(userId) {
   const { rows } = await db.query(
-    'SELECT id, username FROM users WHERE id <> $1 ORDER BY username',
+    'SELECT id, username, display_name AS "displayName", avatar_url AS "avatarUrl" FROM users WHERE id <> $1 ORDER BY display_name',
     [userId]
   );
   return rows;
@@ -14,15 +14,20 @@ async function listForUser(userId) {
     `SELECT c.id,
             other.id AS "userId",
             other.username,
+            other.display_name AS "displayName",
+            other.avatar_url AS "avatarUrl",
             latest.content AS "latestContent",
             latest.user_id AS "latestUserId",
             latest.username AS "latestUsername",
+            latest.display_name AS "latestDisplayName",
+            latest.avatar_url AS "latestAvatarUrl",
+            latest.display_name AS "latestDisplayName",
             latest.created_at AS "latestCreatedAt"
      FROM conversations c
      JOIN users other ON other.id = CASE
        WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END
      LEFT JOIN LATERAL (
-       SELECT m.content, m.user_id, u.username, m.created_at
+       SELECT m.content, m.user_id, u.username, u.display_name, u.avatar_url, m.created_at
        FROM messages m
        JOIN users u ON u.id = m.user_id
        WHERE m.conversation_id = c.id

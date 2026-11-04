@@ -1,3 +1,5 @@
+import '../../core/config.dart';
+
 DateTime _parseDate(dynamic value) {
   if (value is DateTime) return value.toLocal();
   final parsed = DateTime.tryParse(value?.toString() ?? '');
@@ -10,22 +12,34 @@ int _parseInt(dynamic value) {
   return int.tryParse(value?.toString() ?? '') ?? 0;
 }
 
+String? _absoluteUrl(dynamic value) {
+  final path = value?.toString();
+  if (path == null || path.isEmpty) return null;
+  return path.startsWith('http') ? path : '${Config.baseUrl}$path';
+}
+
 class Conversation {
   final int id;
   final int userId;
   final String username;
+  final String displayName;
+  final String? avatarUrl;
   final String? latestContent;
   final int? latestUserId;
   final String? latestUsername;
+  final String? latestDisplayName;
   final DateTime? latestCreatedAt;
 
   Conversation({
     required this.id,
     required this.userId,
     required this.username,
+    required this.displayName,
+    this.avatarUrl,
     this.latestContent,
     this.latestUserId,
     this.latestUsername,
+    this.latestDisplayName,
     this.latestCreatedAt,
   });
 
@@ -33,10 +47,14 @@ class Conversation {
         id: _parseInt(j['id']),
         userId: _parseInt(j['userId']),
         username: '${j['username']}',
+        displayName: j['displayName']?.toString() ?? '${j['username']}',
+        avatarUrl: _absoluteUrl(j['avatarUrl']),
         latestContent: j['latestContent'],
         latestUserId:
             j['latestUserId'] == null ? null : _parseInt(j['latestUserId']),
         latestUsername: j['latestUsername']?.toString(),
+        latestDisplayName: j['latestDisplayName']?.toString() ??
+            j['latestUsername']?.toString(),
         latestCreatedAt: j['latestCreatedAt'] == null
             ? null
             : _parseDate(j['latestCreatedAt']),
@@ -48,6 +66,8 @@ class Message {
   final int conversationId;
   final int userId;
   final String username;
+  final String displayName;
+  final String? avatarUrl;
   final String content;
   final DateTime createdAt;
 
@@ -56,6 +76,8 @@ class Message {
     required this.conversationId,
     required this.userId,
     required this.username,
+    required this.displayName,
+    this.avatarUrl,
     required this.content,
     required this.createdAt,
   });
@@ -65,6 +87,8 @@ class Message {
         conversationId: _parseInt(j['conversationId']),
         userId: _parseInt(j['userId']),
         username: '${j['username']}',
+        displayName: j['displayName']?.toString() ?? '${j['username']}',
+        avatarUrl: _absoluteUrl(j['avatarUrl']),
         content: '${j['content']}',
         createdAt: _parseDate(j['createdAt']),
       );

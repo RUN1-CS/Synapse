@@ -3,6 +3,8 @@ const { HttpError } = require('../../utils/httpError');
 const conversations = require('../conversations/conversations.service');
 
 const COLUMNS = `m.id, m.conversation_id AS "conversationId", m.user_id AS "userId", u.username,
+                 u.display_name AS "displayName",
+                 u.avatar_url AS "avatarUrl",
                  m.content, m.created_at AS "createdAt"`;
 
 async function listByConversation(conversationId, userId, limit = 50) {

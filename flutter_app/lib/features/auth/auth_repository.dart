@@ -19,6 +19,20 @@ class AuthRepository {
   Future<AuthSession> register(String username, String password) =>
       _auth('/auth/register', username, password);
 
+  Future<AuthSession> updateDisplayName(String displayName) async {
+    final data = await api.patch('/auth/me', {'displayName': displayName});
+    final session = AuthSession(User.fromJson(data['user']), data['token']);
+    await _save(session);
+    return session;
+  }
+
+  Future<AuthSession> updateAvatar(List<int> bytes, String filename) async {
+    final data = await api.upload('/auth/me/avatar', 'avatar', bytes, filename);
+    final session = AuthSession(User.fromJson(data['user']), data['token']);
+    await _save(session);
+    return session;
+  }
+
   Future<AuthSession> _auth(
       String path, String username, String password) async {
     final data =

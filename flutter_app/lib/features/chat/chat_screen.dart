@@ -34,8 +34,23 @@ class _ChatScreenState extends State<ChatScreen> {
         chat.messages.reversed.toList(); // reversed list: newest at the bottom
 
     return Scaffold(
-      appBar:
-          AppBar(title: Text(chat.currentUser?.username ?? 'Direct message')),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundImage: chat.currentUser?.avatarUrl == null
+                  ? null
+                  : NetworkImage(chat.currentUser!.avatarUrl!),
+              child: Text(
+                (chat.currentUser?.displayName ?? '?')[0].toUpperCase(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(chat.currentUser?.displayName ?? 'Direct message'),
+          ],
+        ),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -65,7 +80,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (!mine)
-                          Text(m.username,
+                          Text(m.displayName,
                               style: Theme.of(context).textTheme.labelSmall),
                         Text(m.content),
                       ],

@@ -26,6 +26,19 @@ class ApiClient {
   Future<dynamic> post(String path, Map<String, dynamic> body) async => _handle(
       await http.post(_uri(path), headers: _headers, body: jsonEncode(body)));
 
+  Future<dynamic> patch(String path, Map<String, dynamic> body) async =>
+      _handle(await http.patch(_uri(path),
+          headers: _headers, body: jsonEncode(body)));
+
+  Future<dynamic> upload(
+      String path, String field, List<int> bytes, String filename) async {
+    final request = http.MultipartRequest('PATCH', _uri(path))
+      ..headers.addAll(_headers..remove('Content-Type'))
+      ..files
+          .add(http.MultipartFile.fromBytes(field, bytes, filename: filename));
+    return _handle(await http.Response.fromStream(await request.send()));
+  }
+
   dynamic _handle(http.Response r) {
     final data = r.body.isEmpty ? null : jsonDecode(r.body);
     if (r.statusCode >= 200 && r.statusCode < 300) return data;

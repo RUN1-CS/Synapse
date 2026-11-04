@@ -21,6 +21,8 @@ class ChatRepository {
         await api.post('/conversations', {'userId': user.id}) as Map);
     data['userId'] = user.id;
     data['username'] = user.username;
+    data['displayName'] = user.displayName;
+    data['avatarUrl'] = user.avatarUrl;
     return Conversation.fromJson(data);
   }
 

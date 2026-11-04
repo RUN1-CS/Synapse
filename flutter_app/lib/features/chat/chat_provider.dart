@@ -122,9 +122,12 @@ class ChatProvider extends ChangeNotifier {
         id: conversations[index].id,
         userId: conversations[index].userId,
         username: conversations[index].username,
+        displayName: conversations[index].displayName,
+        avatarUrl: conversations[index].avatarUrl,
         latestContent: m.content,
         latestUserId: m.userId,
         latestUsername: m.username,
+        latestDisplayName: m.displayName,
         latestCreatedAt: m.createdAt,
       );
       conversations.sort((a, b) => (b.latestCreatedAt ?? DateTime(0))

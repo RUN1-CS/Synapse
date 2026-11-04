@@ -77,23 +77,29 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               ),
                             ),
                           CircleAvatar(
-                            child: Text(conversation.username[0].toUpperCase()),
+                            backgroundImage: conversation.avatarUrl == null
+                                ? null
+                                : NetworkImage(conversation.avatarUrl!),
+                            child:
+                                Text(conversation.displayName[0].toUpperCase()),
                           ),
                         ],
                       ),
                       title: Text(
-                        conversation.username,
+                        conversation.displayName,
                         style: chat.isUnread(conversation.id)
                             ? const TextStyle(fontWeight: FontWeight.bold)
                             : null,
                       ),
                       subtitle: Text(conversation.latestContent == null
                           ? 'Start a conversation'
-                          : '${conversation.latestUsername}: ${conversation.latestContent}'),
+                          : '${conversation.latestDisplayName}: ${conversation.latestContent}'),
                       onTap: () async {
                         if (!await chat.openConversation(User(
                             id: conversation.userId,
-                            username: conversation.username))) {
+                            username: conversation.username,
+                            displayName: conversation.displayName,
+                            avatarUrl: conversation.avatarUrl))) {
                           return;
                         }
                         if (!context.mounted) return;
@@ -126,9 +132,13 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           children: [
             for (final item in chat.users)
               ListTile(
-                leading:
-                    CircleAvatar(child: Text(item.username[0].toUpperCase())),
-                title: Text(item.username),
+                leading: CircleAvatar(
+                  backgroundImage: item.avatarUrl == null
+                      ? null
+                      : NetworkImage(item.avatarUrl!),
+                  child: Text(item.displayName[0].toUpperCase()),
+                ),
+                title: Text(item.displayName),
                 onTap: () => Navigator.pop(context, item),
               ),
           ],

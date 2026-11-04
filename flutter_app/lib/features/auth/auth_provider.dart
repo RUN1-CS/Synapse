@@ -25,6 +25,10 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> login(String u, String p) => _run(() => _repo.login(u, p));
   Future<void> register(String u, String p) => _run(() => _repo.register(u, p));
+  Future<void> updateDisplayName(String name) =>
+      _run(() => _repo.updateDisplayName(name));
+  Future<void> updateAvatar(List<int> bytes, String filename) =>
+      _run(() => _repo.updateAvatar(bytes, filename));
 
   Future<void> _run(Future<AuthSession> Function() action) async {
     busy = true;
