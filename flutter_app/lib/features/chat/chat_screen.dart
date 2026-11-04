@@ -11,17 +11,27 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _input = TextEditingController();
+  final _inputFocus = FocusNode();
 
   void _send() {
     context.read<ChatProvider>().send(_input.text);
     _input.clear();
+    _inputFocus.requestFocus();
+  }
+
+  @override
+  void dispose() {
+    _input.dispose();
+    _inputFocus.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final chat = context.watch<ChatProvider>();
     final me = context.read<AuthProvider>().user!.id;
-    final msgs = chat.messages.reversed.toList(); // reversed list: newest at the bottom
+    final msgs =
+        chat.messages.reversed.toList(); // reversed list: newest at the bottom
 
     return Scaffold(
       appBar: AppBar(title: Text('# ${chat.current?.name ?? ''}')),
@@ -37,19 +47,25 @@ class _ChatScreenState extends State<ChatScreen> {
                 final mine = m.userId == me;
                 final scheme = Theme.of(context).colorScheme;
                 return Align(
-                  alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment:
+                      mine ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     constraints: const BoxConstraints(maxWidth: 420),
                     decoration: BoxDecoration(
-                      color: mine ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+                      color: mine
+                          ? scheme.primaryContainer
+                          : scheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (!mine) Text(m.username, style: Theme.of(context).textTheme.labelSmall),
+                        if (!mine)
+                          Text(m.username,
+                              style: Theme.of(context).textTheme.labelSmall),
                         Text(m.content),
                       ],
                     ),
@@ -66,12 +82,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _input,
+                      focusNode: _inputFocus,
                       onSubmitted: (_) => _send(),
-                      decoration: const InputDecoration(hintText: 'Message', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                          hintText: 'Message', border: OutlineInputBorder()),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton.filled(onPressed: _send, icon: const Icon(Icons.send)),
+                  IconButton.filled(
+                      onPressed: _send, icon: const Icon(Icons.send)),
                 ],
               ),
             ),
