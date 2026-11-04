@@ -26,6 +26,24 @@ class ChatRepository {
     return Conversation.fromJson(data);
   }
 
+  Future<void> requestFriend(int userId) async {
+    await api.post('/conversations/friends/requests', {'userId': userId});
+  }
+
+  Future<void> respondFriend(int userId, bool accept) async {
+    await api
+        .patch('/conversations/friends/requests/$userId', {'accept': accept});
+  }
+
+  Future<void> setMuted(int userId, bool muted) async {
+    await api.patch('/conversations/friends/$userId/mute', {'muted': muted});
+  }
+
+  Future<void> setBlocked(int userId, bool blocked) async {
+    await api
+        .patch('/conversations/friends/$userId/block', {'blocked': blocked});
+  }
+
   Future<List<Message>> messages(int conversationId) async =>
       (await api.get('/conversations/$conversationId/messages') as List)
           .map((e) => Message.fromJson(e))

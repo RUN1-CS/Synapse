@@ -3,10 +3,98 @@ const { HttpError } = require('../../utils/httpError');
 
 async function listUsers(userId) {
   const { rows } = await db.query(
-    'SELECT id, username, display_name AS "displayName", avatar_url AS "avatarUrl" FROM users WHERE id <> $1 ORDER BY display_name',
+    `SELECT u.id, u.username, u.display_name AS "displayName", u.avatar_url AS "avatarUrl",
+       CASE
+         WHEN EXISTS (SELECT 1 FROM friend_requests f WHERE f.status = 'accepted'
+           AND ((f.requester_id = $1 AND f.recipient_id = u.id)
+             OR (f.requester_id = u.id AND f.recipient_id = $1))) THEN 'accepted'
+         WHEN EXISTS (SELECT 1 FROM friend_requests f WHERE f.status = 'pending'
+           AND f.requester_id = u.id AND f.recipient_id = $1) THEN 'incoming'
+         WHEN EXISTS (SELECT 1 FROM friend_requests f WHERE f.status = 'pending'
+           AND f.requester_id = $1 AND f.recipient_id = u.id) THEN 'outgoing'
+         ELSE 'none'
+       END AS "friendStatus",
+       EXISTS (SELECT 1 FROM muted_users m WHERE m.muter_id = $1 AND m.muted_id = u.id) AS muted,
+       EXISTS (SELECT 1 FROM blocked_users b WHERE b.blocker_id = $1 AND b.blocked_id = u.id) AS blocked,
+       EXISTS (SELECT 1 FROM blocked_users b WHERE b.blocker_id = u.id AND b.blocked_id = $1) AS "blockedByUser"
+     FROM users u WHERE u.id <> $1 ORDER BY u.display_name`,
     [userId]
   );
   return rows;
+}
+
+async function assertFriends(userId, otherUserId) {
+  const { rows } = await db.query(
+    `SELECT EXISTS (SELECT 1 FROM friend_requests f WHERE f.status = 'accepted'
+       AND ((f.requester_id = $1 AND f.recipient_id = $2)
+         OR (f.requester_id = $2 AND f.recipient_id = $1))) AS friends,
+       EXISTS (SELECT 1 FROM blocked_users b
+         WHERE (b.blocker_id = $1 AND b.blocked_id = $2)
+            OR (b.blocker_id = $2 AND b.blocked_id = $1)) AS blocked`,
+    [userId, otherUserId]
+  );
+  if (!rows[0].friends) throw new HttpError(403, 'You must be friends before starting a chat');
+  if (rows[0].blocked) throw new HttpError(403, 'This user is blocked');
+}
+
+async function requestFriend(userId, otherUserId) {
+  const other = Number(otherUserId);
+  if (!Number.isInteger(other) || other <= 0 || other === userId) {
+    throw new HttpError(400, 'Choose another user');
+  }
+  const { rows } = await db.query(
+    `SELECT 1 FROM blocked_users
+     WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1)`,
+    [userId, other]
+  );
+  if (rows[0]) throw new HttpError(403, 'Cannot request friendship with a blocked user');
+  const result = await db.query(
+    `INSERT INTO friend_requests (requester_id, recipient_id, status)
+     VALUES ($1, $2, 'pending')
+     ON CONFLICT (requester_id, recipient_id)
+     DO UPDATE SET status = 'pending', created_at = now()
+     RETURNING id`,
+    [userId, other]
+  );
+  return result.rows[0];
+}
+
+async function respondFriend(userId, otherUserId, accept) {
+  const other = Number(otherUserId);
+  const result = await db.query(
+    `UPDATE friend_requests SET status = $1
+     WHERE requester_id = $2 AND recipient_id = $3 AND status = 'pending'
+     RETURNING id`,
+    [accept ? 'accepted' : 'rejected', other, userId]
+  );
+  if (!result.rows[0]) throw new HttpError(404, 'Friend request not found');
+  return result.rows[0];
+}
+
+async function setMuted(userId, otherUserId, muted) {
+  if (muted) {
+    await db.query(
+      `INSERT INTO muted_users (muter_id, muted_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [userId, Number(otherUserId)]
+    );
+  } else {
+    await db.query('DELETE FROM muted_users WHERE muter_id = $1 AND muted_id = $2',
+      [userId, Number(otherUserId)]);
+  }
+}
+
+async function setBlocked(userId, otherUserId, blocked) {
+  if (blocked) {
+    await db.query(
+      `INSERT INTO blocked_users (blocker_id, blocked_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [userId, Number(otherUserId)]
+    );
+  } else {
+    await db.query('DELETE FROM blocked_users WHERE blocker_id = $1 AND blocked_id = $2',
+      [userId, Number(otherUserId)]);
+  }
 }
 
 async function listForUser(userId) {
@@ -49,6 +137,7 @@ async function getOrCreate(userId, otherUserId) {
 
   const first = Math.min(userId, other);
   const second = Math.max(userId, other);
+  await assertFriends(userId, other);
   const { rows } = await db.query(
     `INSERT INTO conversations (user_one_id, user_two_id) VALUES ($1, $2)
      ON CONFLICT (user_one_id, user_two_id) DO UPDATE SET user_one_id = EXCLUDED.user_one_id
@@ -60,11 +149,16 @@ async function getOrCreate(userId, otherUserId) {
 
 async function assertMember(conversationId, userId) {
   const { rows } = await db.query(
-    `SELECT id FROM conversations
+    `SELECT id, user_one_id, user_two_id FROM conversations
      WHERE id = $1 AND (user_one_id = $2 OR user_two_id = $2)`,
     [conversationId, userId]
   );
   if (!rows[0]) throw new HttpError(403, 'You are not part of this conversation');
+  const other = rows[0].user_one_id === userId ? rows[0].user_two_id : rows[0].user_one_id;
+  await assertFriends(userId, other);
 }
 
-module.exports = { listUsers, listForUser, getOrCreate, assertMember };
+module.exports = {
+  listUsers, listForUser, getOrCreate, assertMember, requestFriend,
+  respondFriend, setMuted, setBlocked,
+};

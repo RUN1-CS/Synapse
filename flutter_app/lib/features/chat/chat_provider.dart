@@ -60,7 +60,28 @@ class ChatProvider extends ChangeNotifier {
     } on ApiException catch (e) {
       error = e.message;
     }
+
     notifyListeners();
+  }
+
+  Future<void> requestFriend(User user) async {
+    await _repo.requestFriend(user.id);
+    await loadUsers();
+  }
+
+  Future<void> respondFriend(User user, bool accept) async {
+    await _repo.respondFriend(user.id, accept);
+    await loadUsers();
+  }
+
+  Future<void> setMuted(User user, bool muted) async {
+    await _repo.setMuted(user.id, muted);
+    await loadUsers();
+  }
+
+  Future<void> setBlocked(User user, bool blocked) async {
+    await _repo.setBlocked(user.id, blocked);
+    await loadUsers();
   }
 
   Future<bool> openConversation(User user) async {

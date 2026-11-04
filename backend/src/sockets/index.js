@@ -47,11 +47,17 @@ module.exports = function initSockets(httpServer) {
         });
         io.to(conversationKey(conversationId)).emit("new_message", msg);
         const { rows } = await db.query(
-          `SELECT CASE WHEN user_one_id = $1 THEN user_two_id ELSE user_one_id END AS "recipientId"
-           FROM conversations WHERE id = $2`,
+          `SELECT CASE WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END AS "recipientId",
+             EXISTS (SELECT 1 FROM muted_users m
+               WHERE m.muter_id = CASE WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END
+                 AND m.muted_id = $1) AS muted,
+             EXISTS (SELECT 1 FROM blocked_users b
+               WHERE (b.blocker_id = $1 AND b.blocked_id = CASE WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END)
+                  OR (b.blocker_id = CASE WHEN c.user_one_id = $1 THEN c.user_two_id ELSE c.user_one_id END AND b.blocked_id = $1)) AS blocked
+           FROM conversations c WHERE c.id = $2`,
           [socket.user.id, conversationId],
         );
-        if (rows[0])
+        if (rows[0] && !rows[0].muted && !rows[0].blocked)
           io.to(userKey(rows[0].recipientId)).emit("message_notification", msg);
         if (typeof ack === "function") ack({ ok: true });
       } catch (e) {

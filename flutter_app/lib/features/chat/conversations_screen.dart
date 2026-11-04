@@ -128,24 +128,37 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     final chat = context.read<ChatProvider>();
     final user = await showModalBottomSheet<User>(
       context: context,
-      builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final item in chat.users)
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: item.avatarUrl == null
-                      ? null
-                      : NetworkImage(item.avatarUrl!),
-                  child: item.avatarUrl == null
-                      ? Text(item.displayName[0].toUpperCase())
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setState) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final item in chat.users)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: item.avatarUrl == null
+                        ? null
+                        : NetworkImage(item.avatarUrl!),
+                    child: item.avatarUrl == null
+                        ? Text(item.displayName[0].toUpperCase())
+                        : null,
+                  ),
+                  title: Text(item.displayName),
+                  subtitle: Text(_relationshipLabel(item)),
+                  trailing: _relationshipAction(
+                    item,
+                    chat,
+                    () => setState(() {}),
+                    sheetContext,
+                  ),
+                  onTap: item.friendStatus == 'accepted' &&
+                          !item.blocked &&
+                          !item.blockedByUser
+                      ? () => Navigator.pop(sheetContext, item)
                       : null,
                 ),
-                title: Text(item.displayName),
-                onTap: () => Navigator.pop(context, item),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -154,5 +167,68 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       context,
       MaterialPageRoute(builder: (_) => const ChatScreen()),
     ).then((_) => chat.closeConversation());
+  }
+
+  String _relationshipLabel(User user) {
+    if (user.blocked) return 'Blocked';
+    if (user.blockedByUser) return 'You are blocked';
+    switch (user.friendStatus) {
+      case 'accepted':
+        return user.muted ? 'Muted' : 'Friend';
+      case 'incoming':
+        return 'Friend request received';
+      case 'outgoing':
+        return 'Friend request sent';
+      default:
+        return 'Not a friend';
+    }
+  }
+
+  Widget? _relationshipAction(User user, ChatProvider chat,
+      VoidCallback refresh, BuildContext sheetContext) {
+    if (user.blockedByUser) return null;
+    if (user.blocked) {
+      return TextButton(
+        onPressed: () async {
+          await chat.setBlocked(user, false);
+          refresh();
+        },
+        child: const Text('Unblock'),
+      );
+    }
+    if (user.friendStatus == 'incoming') {
+      return TextButton(
+        onPressed: () async {
+          await chat.respondFriend(user, true);
+          refresh();
+        },
+        child: const Text('Accept'),
+      );
+    }
+    if (user.friendStatus == 'outgoing') return const Text('Pending');
+    if (user.friendStatus != 'accepted') {
+      return TextButton(
+        onPressed: () async {
+          await chat.requestFriend(user);
+          refresh();
+        },
+        child: const Text('Add'),
+      );
+    }
+    return PopupMenuButton<String>(
+      onSelected: (action) async {
+        if (action == 'mute') await chat.setMuted(user, !user.muted);
+        if (action == 'block') await chat.setBlocked(user, true);
+        refresh();
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'mute',
+          child:
+              Text(user.muted ? 'Unmute notifications' : 'Mute notifications'),
+        ),
+        const PopupMenuItem(value: 'block', child: Text('Block user')),
+      ],
+    );
   }
 }
