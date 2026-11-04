@@ -76,11 +76,14 @@ class SocketService {
   void leaveConversation(int id) => _socket?.emit('leave_conversation', id);
   String send(int conversationId, String content) {
     final random = Random.secure();
-    String hex(int value) => value.toRadixString(16).padLeft(8, '0');
-    final clientMessageId = '${hex(random.nextInt(1 << 32))}-'
-        '${hex(random.nextInt(1 << 32))}-4${hex(random.nextInt(1 << 28))}-'
-        '${(8 + random.nextInt(4)).toRadixString(16)}${hex(random.nextInt(1 << 28))}-'
-        '${hex(random.nextInt(1 << 32))}${hex(random.nextInt(1 << 32))}';
+    const hexDigits = '0123456789abcdef';
+    String randomHex(int length) => List.generate(
+          length,
+          (_) => hexDigits[random.nextInt(hexDigits.length)],
+        ).join();
+    final clientMessageId = '${randomHex(8)}-${randomHex(4)}-4${randomHex(3)}-'
+        '${(8 + random.nextInt(4)).toRadixString(16)}${randomHex(3)}-'
+        '${randomHex(12)}';
     final payload = {
       'conversationId': conversationId,
       'content': content,
