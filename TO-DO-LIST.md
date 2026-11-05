@@ -64,18 +64,19 @@ Status: `[x]` shipped · `[ ]` planned · `[~]` partial or needs verification
 - [ ] Add scheduled messages
 - [ ] Add voice messages
 
-## Release 2 — Groups and social features
+## Release 2 — Groups, Communities and social features
 
-- [ ] Add group roles, permissions and administrators
-- [ ] Add group ownership transfer
-- [ ] Add group member management
+- [ ] Add communities
+- [ ] Add community roles, permissions and administrators
+- [ ] Add group and community ownership transfer
+- [ ] Add community member management
 - [ ] Add temporary and permanent bans
-- [ ] Add group invite links with expiration
+- [ ] Add community invite links with expiration
 - [ ] Add threads
-- [ ] Add group announcements
+- [ ] Add community announcements
 - [ ] Add a shared media gallery
-- [ ] Add group-specific pinned messages
-- [ ] Add group-specific notification preferences
+- [ ] Add group/community-specific pinned messages
+- [ ] Add community-specific notification preferences
 - [ ] Add custom status messages and activity status
 - [ ] Add custom emojis and GIF support
 - [ ] Add user blocking and reporting flows
