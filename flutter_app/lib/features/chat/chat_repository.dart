@@ -34,6 +34,12 @@ class ChatRepository {
   Future<void> markNotificationRead(int id) async =>
       api.patch('/notifications/$id/read', {});
 
+  Future<void> markConversationNotificationsRead(int conversationId) async =>
+      api.patch('/notifications/conversation/$conversationId/read', {});
+
+  Future<void> markAllNotificationsRead() async =>
+      api.patch('/notifications/read-all', {});
+
   Future<Conversation> conversationFor(User user) async {
     final data = Map<String, dynamic>.from(
         await api.post('/conversations', {'userId': user.id}) as Map);

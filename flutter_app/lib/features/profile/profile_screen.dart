@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/api_client.dart';
+import '../auth/auth_provider.dart';
 import '../auth/user.dart';
 import '../chat/chat_provider.dart';
 
@@ -40,6 +41,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final chat = context.read<ChatProvider>();
+    final displayedUser =
+        widget.ownProfile ? context.watch<AuthProvider>().user ?? _user : _user;
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: ListView(
@@ -48,13 +51,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Center(
             child: CircleAvatar(
               radius: 48,
-              backgroundImage:
-                  _user.avatarUrl == null ? null : NetworkImage(_user.avatarUrl!),
-              child: _user.avatarUrl == null
+              backgroundImage: displayedUser.avatarUrl == null
+                  ? null
+                  : NetworkImage(displayedUser.avatarUrl!),
+              child: displayedUser.avatarUrl == null
                   ? Text(
-                      _user.displayName.isEmpty
+                      displayedUser.displayName.isEmpty
                           ? '?'
-                          : _user.displayName[0].toUpperCase(),
+                          : displayedUser.displayName[0].toUpperCase(),
                       style: const TextStyle(fontSize: 32),
                     )
                   : null,
@@ -62,12 +66,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
           Center(
-            child: Text(_user.displayName,
+            child: Text(displayedUser.displayName,
                 style: Theme.of(context).textTheme.headlineSmall),
           ),
-          Center(child: Text('@${_user.username}')),
+          Center(child: Text('@${displayedUser.username}')),
           const SizedBox(height: 24),
-          Text(_user.bio.isEmpty ? 'No bio yet.' : _user.bio),
+          Text(displayedUser.bio.isEmpty ? 'No bio yet.' : displayedUser.bio),
           if (!widget.ownProfile) ...[
             const SizedBox(height: 24),
             Text(_statusLabel),

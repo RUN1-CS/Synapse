@@ -14,15 +14,31 @@ class ConversationsScreen extends StatefulWidget {
   State<ConversationsScreen> createState() => _ConversationsScreenState();
 }
 
-class _ConversationsScreenState extends State<ConversationsScreen> {
+class _ConversationsScreenState extends State<ConversationsScreen>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final auth = context.read<AuthProvider>();
     context.read<ChatProvider>().start(
           auth.token!,
           auth.user!.id,
         );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final chat = context.read<ChatProvider>();
+    chat.loadConversations();
+    chat.loadNotifications();
   }
 
   @override
@@ -42,8 +58,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             onPressed: () async {
               await chat.loadNotifications();
               if (!context.mounted) return;
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen()));
             },
           ),
           IconButton(
@@ -52,8 +70,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             onPressed: () {
               final user = context.read<AuthProvider>().user;
               if (user != null) {
-                Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => ProfileScreen(user: user, ownProfile: true)));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            ProfileScreen(user: user, ownProfile: true)));
               }
             },
           ),
@@ -186,33 +207,36 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 child: ListView(
                   shrinkWrap: true,
                   children: [
-              for (final item in chat.users)
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: item.avatarUrl == null
-                        ? null
-                        : NetworkImage(item.avatarUrl!),
-                    child: item.avatarUrl == null
-                        ? Text(item.displayName[0].toUpperCase())
-                        : null,
-                  ),
-                  title: Text(item.displayName),
-                  subtitle: Text(_relationshipLabel(item)),
-                  trailing: _relationshipAction(
-                    item,
-                    chat,
-                    () => setState(() {}),
-                    sheetContext,
-                  ),
-                  onTap: item.friendStatus == 'accepted' &&
-                          !item.blocked &&
-                          !item.blockedByUser
-                      ? () => Navigator.pop(sheetContext, item)
-                      : () {
-                          Navigator.push(sheetContext, MaterialPageRoute(
-                              builder: (_) => ProfileScreen(user: item)));
-                        },
-                ),
+                    for (final item in chat.users)
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: item.avatarUrl == null
+                              ? null
+                              : NetworkImage(item.avatarUrl!),
+                          child: item.avatarUrl == null
+                              ? Text(item.displayName[0].toUpperCase())
+                              : null,
+                        ),
+                        title: Text(item.displayName),
+                        subtitle: Text(_relationshipLabel(item)),
+                        trailing: _relationshipAction(
+                          item,
+                          chat,
+                          () => setState(() {}),
+                          sheetContext,
+                        ),
+                        onTap: item.friendStatus == 'accepted' &&
+                                !item.blocked &&
+                                !item.blockedByUser
+                            ? () => Navigator.pop(sheetContext, item)
+                            : () {
+                                Navigator.push(
+                                    sheetContext,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            ProfileScreen(user: item)));
+                              },
+                      ),
                   ],
                 ),
               ),

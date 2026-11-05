@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../chat/chat_provider.dart';
+import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -20,7 +21,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final chat = context.watch<ChatProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        actions: [
+          if (chat.notifications.isNotEmpty)
+            TextButton(
+              onPressed: chat.markAllNotificationsRead,
+              child: const Text('Mark all read'),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: chat.loadNotifications,
         child: ListView(
@@ -40,15 +50,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 title: Text(item.type == 'friend_request'
                     ? '${item.actor.displayName} sent you a friend request'
                     : '${item.actor.displayName} sent you a message'),
+                trailing: IconButton(
+                  tooltip: 'Mark as read',
+                  icon: const Icon(Icons.done),
+                  onPressed: () => chat.markNotificationRead(item),
+                ),
                 onTap: () async {
-                  await chat.markNotificationRead(item);
+                  if (item.type == 'message' && item.conversationId != null) {
+                    if (!await chat.openConversation(item.actor)) return;
+                  } else {
+                    await chat.markNotificationRead(item);
+                  }
                   if (!context.mounted) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => ProfileScreen(user: item.actor),
+                      builder: (_) => item.type == 'message'
+                          ? const ChatScreen()
+                          : ProfileScreen(user: item.actor),
                     ),
-                  );
+                  ).then((_) => chat.closeConversation());
                 },
               ),
           ],

@@ -72,6 +72,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final auth = context.read<AuthProvider>();
     await auth.updateDisplayName(_displayName.text);
     await auth.updateBio(_bio.text);
+    if (auth.user != null) {
+      context.read<ChatProvider>().updateLocalUser(auth.user!);
+    }
     if (!mounted || auth.error != null) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile updated')),
@@ -83,6 +86,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (file == null || !mounted) return;
     final auth = context.read<AuthProvider>();
     await auth.updateAvatar(await file.readAsBytes(), file.name);
+    if (auth.user != null) {
+      context.read<ChatProvider>().updateLocalUser(auth.user!);
+    }
   }
 
   Future<void> _changePassword() async {

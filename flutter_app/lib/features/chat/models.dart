@@ -122,11 +122,13 @@ class NotificationItem {
   final String type;
   final User actor;
   final int? friendRequestId;
+  final int? conversationId;
   NotificationItem({
     required this.id,
     required this.type,
     required this.actor,
     this.friendRequestId,
+    this.conversationId,
   });
   factory NotificationItem.fromJson(Map<String, dynamic> j) => NotificationItem(
         id: _parseInt(j['id']),
@@ -135,5 +137,7 @@ class NotificationItem {
         friendRequestId: j['friendRequestId'] == null
             ? null
             : _parseInt(j['friendRequestId']),
+        conversationId:
+            j['conversationId'] == null ? null : _parseInt(j['conversationId']),
       );
 }

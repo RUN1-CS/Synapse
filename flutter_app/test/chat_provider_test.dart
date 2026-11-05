@@ -31,6 +31,9 @@ class FakeRepository extends ChatRepository {
   Future<Conversation> conversationFor(User user) async => conversation;
 
   @override
+  Future<void> markConversationNotificationsRead(int conversationId) async {}
+
+  @override
   Future<List<Message>> messages(int conversationId,
       {int? limit, int? before, int? after}) async {
     requestedLimits.add(limit);

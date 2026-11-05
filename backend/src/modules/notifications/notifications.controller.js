@@ -9,3 +9,16 @@ exports.markRead = asyncHandler(async (req, res) => {
   await service.markRead(req.user.id, req.params.notificationId);
   res.json({ ok: true });
 });
+
+exports.markConversationRead = asyncHandler(async (req, res) => {
+  await service.markConversationRead(
+    req.user.id,
+    Number(req.params.conversationId)
+  );
+  res.json({ ok: true });
+});
+
+exports.markAllRead = asyncHandler(async (req, res) => {
+  await service.markAllRead(req.user.id);
+  res.json({ ok: true });
+});

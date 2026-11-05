@@ -97,20 +97,68 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateLocalUser(User user) {
+    currentUser = currentUser?.id == user.id ? user : currentUser;
+    users = [
+      for (final item in users) item.id == user.id ? user : item,
+    ];
+    conversations = [
+      for (final conversation in conversations)
+        conversation.userId == user.id
+            ? Conversation(
+                id: conversation.id,
+                userId: conversation.userId,
+                username: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
+                latestContent: conversation.latestContent,
+                latestUserId: conversation.latestUserId,
+                latestUsername: conversation.latestUsername,
+                latestDisplayName: conversation.latestDisplayName,
+                latestCreatedAt: conversation.latestCreatedAt,
+              )
+            : conversation,
+    ];
+    messages = [
+      for (final message in messages)
+        message.userId == user.id
+            ? Message(
+                id: message.id,
+                conversationId: message.conversationId,
+                userId: message.userId,
+                username: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
+                clientMessageId: message.clientMessageId,
+                content: message.content,
+                createdAt: message.createdAt,
+                status: message.status,
+              )
+            : message,
+    ];
+    notifyListeners();
+  }
+
   Future<void> markNotificationRead(NotificationItem item) async {
     await _repo.markNotificationRead(item.id);
     notifications.removeWhere((n) => n.id == item.id);
     notifyListeners();
   }
 
+  Future<void> markAllNotificationsRead() async {
+    await _repo.markAllNotificationsRead();
+    notifications = [];
+    notifyListeners();
+  }
+
   Future<void> requestFriend(User user) async {
     await _repo.requestFriend(user.id);
-    await loadUsers();
+    await Future.wait([loadUsers(), loadNotifications()]);
   }
 
   Future<void> respondFriend(User user, bool accept) async {
     await _repo.respondFriend(user.id, accept);
-    await loadUsers();
+    await Future.wait([loadUsers(), loadNotifications()]);
   }
 
   Future<void> setMuted(User user, bool muted) async {
@@ -133,6 +181,8 @@ class ChatProvider extends ChangeNotifier {
       hasOlderMessages = true;
       current = await _repo.conversationFor(user);
       unreadConversationIds.remove(current!.id);
+      await _repo.markConversationNotificationsRead(current!.id);
+      notifications.removeWhere((item) => item.conversationId == current!.id);
       _socket.joinConversation(current!.id);
       notifyListeners();
       final history = await _repo.messages(
@@ -284,8 +334,8 @@ class ChatProvider extends ChangeNotifier {
     _updateConversation(m);
     if (m.conversationId != current?.id) {
       unreadConversationIds.add(m.conversationId);
-      notifyListeners();
     }
+    loadNotifications();
   }
 
   void _updateConversation(Message m) {
