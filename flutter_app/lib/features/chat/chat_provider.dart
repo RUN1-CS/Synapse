@@ -7,6 +7,7 @@ import 'models.dart';
 import 'socket_service.dart';
 
 class ChatProvider extends ChangeNotifier {
+  static const messageBatchSize = 30;
   final ChatRepository _repo;
   final SocketService _socket;
   StreamSubscription<Message>? _sub;
@@ -31,6 +32,8 @@ class ChatProvider extends ChangeNotifier {
   final Set<String> pendingClientMessageIds = {};
   String? error;
   int? selfUserId;
+  bool loadingOlderMessages = false;
+  bool hasOlderMessages = true;
 
   bool isUnread(int conversationId) =>
       unreadConversationIds.contains(conversationId);
@@ -126,11 +129,17 @@ class ChatProvider extends ChangeNotifier {
     try {
       currentUser = user;
       messages = [];
+      loadingOlderMessages = false;
+      hasOlderMessages = true;
       current = await _repo.conversationFor(user);
       unreadConversationIds.remove(current!.id);
       _socket.joinConversation(current!.id);
       notifyListeners();
-      final history = await _repo.messages(current!.id);
+      final history = await _repo.messages(
+        current!.id,
+        limit: messageBatchSize,
+      );
+      hasOlderMessages = history.length == messageBatchSize;
       final known = history.map((m) => m.id).toSet();
       messages = [...history, ...messages.where((m) => !known.contains(m.id))];
       for (final message in history) {
@@ -157,6 +166,37 @@ class ChatProvider extends ChangeNotifier {
     current = null;
     currentUser = null;
     messages = [];
+    loadingOlderMessages = false;
+    hasOlderMessages = true;
+  }
+
+  Future<void> loadOlderMessages() async {
+    if (current == null ||
+        messages.isEmpty ||
+        loadingOlderMessages ||
+        !hasOlderMessages) {
+      return;
+    }
+    loadingOlderMessages = true;
+    notifyListeners();
+    try {
+      final older = await _repo.messages(
+        current!.id,
+        limit: messageBatchSize,
+        before: messages.first.id,
+      );
+      final known = messages.map((message) => message.id).toSet();
+      messages = [
+        ...older.where((message) => !known.contains(message.id)),
+        ...messages,
+      ];
+      hasOlderMessages = older.length == messageBatchSize;
+    } on ApiException catch (e) {
+      error = e.message;
+    } finally {
+      loadingOlderMessages = false;
+      notifyListeners();
+    }
   }
 
   void send(String text) {

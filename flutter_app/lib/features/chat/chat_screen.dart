@@ -14,6 +14,40 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _input = TextEditingController();
   final _inputFocus = FocusNode();
+  final _messagesScrollController = ScrollController();
+  bool _preservingScrollPosition = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _messagesScrollController.addListener(_loadOlderWhenNeeded);
+  }
+
+  void _loadOlderWhenNeeded() {
+    if (!_messagesScrollController.hasClients ||
+        _preservingScrollPosition ||
+        _messagesScrollController.position.pixels <
+            _messagesScrollController.position.maxScrollExtent - 120) {
+      return;
+    }
+    final chat = context.read<ChatProvider>();
+    if (chat.loadingOlderMessages || !chat.hasOlderMessages) return;
+    final previousMaxExtent =
+        _messagesScrollController.position.maxScrollExtent;
+    _preservingScrollPosition = true;
+    chat.loadOlderMessages().whenComplete(() {
+      if (!mounted || !_messagesScrollController.hasClients) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_messagesScrollController.hasClients) return;
+        final position = _messagesScrollController.position;
+        final addedExtent = position.maxScrollExtent - previousMaxExtent;
+        if (addedExtent > 0) {
+          position.jumpTo(position.pixels + addedExtent);
+        }
+        _preservingScrollPosition = false;
+      });
+    });
+  }
 
   void _send() {
     context.read<ChatProvider>().send(_input.text);
@@ -25,6 +59,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _input.dispose();
     _inputFocus.dispose();
+    _messagesScrollController.dispose();
     super.dispose();
   }
 
@@ -72,6 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: ListView.builder(
+              controller: _messagesScrollController,
               reverse: true,
               padding: const EdgeInsets.all(12),
               itemCount: msgs.length,

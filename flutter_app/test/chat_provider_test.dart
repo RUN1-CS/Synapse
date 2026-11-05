@@ -11,6 +11,9 @@ import 'package:chat_app/features/chat/socket_service.dart';
 class FakeRepository extends ChatRepository {
   FakeRepository() : super(ApiClient());
 
+  final requestedLimits = <int?>[];
+  final requestedBefores = <int?>[];
+
   final conversation = Conversation(
     id: 7,
     userId: 2,
@@ -29,7 +32,12 @@ class FakeRepository extends ChatRepository {
 
   @override
   Future<List<Message>> messages(int conversationId,
-      {int? before, int? after}) async {
+      {int? limit, int? before, int? after}) async {
+    requestedLimits.add(limit);
+    requestedBefores.add(before);
+    if (before != null) {
+      return [_message(0, 'older', 'sent')];
+    }
     if (after != null) {
       return [_message(2, 'recovered', 'sent')];
     }
@@ -164,5 +172,14 @@ void main() {
 
     expect(provider.messages.map((message) => message.id), [1, 2]);
     expect(socket.read.last, {'conversationId': 7, 'messageId': 2});
+  });
+
+  test('older history loads in another ten-message batch', () async {
+    provider.hasOlderMessages = true;
+    await provider.loadOlderMessages();
+
+    expect(provider.messages.map((message) => message.id), [0, 1]);
+    expect(repository.requestedLimits, [10, 10]);
+    expect(repository.requestedBefores, [null, 1]);
   });
 }

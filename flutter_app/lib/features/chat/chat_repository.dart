@@ -63,8 +63,9 @@ class ChatRepository {
   }
 
   Future<List<Message>> messages(int conversationId,
-          {int? before, int? after}) async =>
+          {int? limit, int? before, int? after}) async =>
       (await api.get('/conversations/$conversationId/messages?'
+              '${limit == null ? '' : 'limit=$limit&'}'
               '${before == null ? '' : 'before=$before&'}'
               '${after == null ? '' : 'after=$after'}') as List)
           .map((e) => Message.fromJson(e))
